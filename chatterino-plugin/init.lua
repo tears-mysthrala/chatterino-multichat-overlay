@@ -102,7 +102,8 @@ local function publish(panel, message)
   if id:match("^kick%-chat%-") or id:match("^yt%-chat%-") then return end
   if streak_pending[panel] then
     local pending = streak_pending[panel]
-    if #pending < 100 then pending[#pending + 1] = message end
+    if #pending >= 100 then table.remove(pending, 1) end
+    pending[#pending + 1] = message
     return
   end
   local author = tostring(message.display_name or message.login_name or "")
