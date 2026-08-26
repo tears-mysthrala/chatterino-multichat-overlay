@@ -1,7 +1,8 @@
 local ENDPOINT = "http://127.0.0.1:8765/api/events"
 local CONTROL_ENDPOINT = "http://127.0.0.1:8764/control/activate"
 local PANELS_FILE = "panels.txt"
-local handles, panels, seen, streak_panels = {}, {}, {}, {}
+local STREAK_SEQUENCE_FILE = "streak-sequence.txt"
+local handles, panels, seen, streak_panels, streak_pending = {}, {}, {}, {}, {}
 local heartbeat_started = false
 local updates_checked = false
 
@@ -99,6 +100,11 @@ end
 local function publish(panel, message)
   local id = tostring(message.id or "")
   if id:match("^kick%-chat%-") or id:match("^yt%-chat%-") then return end
+  if streak_pending[panel] then
+    local pending = streak_pending[panel]
+    if #pending < 100 then pending[#pending + 1] = message end
+    return
+  end
   local author = tostring(message.display_name or message.login_name or "")
   local text = tostring(message.message_text or "")
   if author == "" or text == "" then return end
@@ -122,7 +128,7 @@ local function publish(panel, message)
   if streak_panels[panel] then
     streak_fields = '"channel":' .. json_string(panel) .. "," ..
       '"user_id":' .. json_string(message.login_name or author) .. "," ..
-      '"stream_id":' .. json_string(panel .. ":active") .. ","
+      '"stream_id":' .. json_string(streak_panels[panel]) .. ","
   end
   local payload = "{" ..
     '"panel":' .. json_string(panel) .. "," ..
@@ -145,21 +151,48 @@ local function publish(panel, message)
   end)
 end
 
+local function next_session_id(panel)
+  local sequence = 0
+  local input = io.open(STREAK_SEQUENCE_FILE, "r")
+  if input then sequence = tonumber(input:read("*a")) or 0; input:close() end
+  sequence = sequence + 1
+  local output = io.open(STREAK_SEQUENCE_FILE, "w")
+  if output then output:write(tostring(sequence), "\n"); output:close() end
+  return panel .. ":" .. tostring(sequence)
+end
+
+local function flush_streak_pending(panel, pending)
+  if streak_pending[panel] ~= pending then return end
+  streak_pending[panel] = nil
+  for _, message in ipairs(pending) do publish(panel, message) end
+end
+
 local function publish_session(panel)
-  streak_panels[panel] = true
+  local stream_id = next_session_id(panel)
+  local pending = {}
+  streak_pending[panel] = pending
   local payload = "{" ..
     '"panel":' .. json_string(panel) .. "," ..
     '"platform":"twitch","kind":"stream_session","text":"",' ..
     '"channel":' .. json_string(panel) .. "," ..
-    '"stream_id":' .. json_string(panel .. ":active") .. "}"
-  pcall(function()
+    '"stream_id":' .. json_string(stream_id) .. "}"
+  local ok = pcall(function()
     local request = c2.HTTPRequest.create(c2.HTTPMethod.Post, ENDPOINT)
     request:set_header("Content-Type", "application/json")
     request:set_timeout(750)
     request:set_payload(payload)
-    request:on_success(function() end); request:on_error(function() end); request:finally(function() end)
+    request:on_success(function(response)
+      if response:status() == 202 then streak_panels[panel] = stream_id else streak_panels[panel] = nil end
+      flush_streak_pending(panel, pending)
+    end)
+    request:on_error(function()
+      streak_panels[panel] = nil
+      flush_streak_pending(panel, pending)
+    end)
+    request:finally(function() end)
     request:execute()
   end)
+  if not ok then streak_panels[panel] = nil; flush_streak_pending(panel, pending) end
 end
 
 local function save_panels()

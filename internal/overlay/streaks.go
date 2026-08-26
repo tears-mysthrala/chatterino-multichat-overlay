@@ -65,7 +65,7 @@ func NewStreakTracker(file string) (*StreakTracker, error) {
 }
 
 func streakScope(platform, channel string) string {
-	return strings.ToLower(strings.TrimSpace(platform)) + "\x00" + strings.ToLower(strings.TrimSpace(channel))
+	return strings.ToLower(strings.TrimSpace(platform)) + "\x00" + strings.TrimSpace(channel)
 }
 
 func viewerKey(scope, userID, author string) string {
@@ -85,7 +85,7 @@ func (t *StreakTracker) Start(message Message, now time.Time) {
 	}
 	day := now.Local().Format("2006-01-02")
 	current, ok := t.sessions[scope]
-	if ok && current.StreamID == message.StreamID && current.Day == day {
+	if ok && current.StreamID == message.StreamID {
 		return
 	}
 	previous := current.Day
@@ -93,6 +93,14 @@ func (t *StreakTracker) Start(message Message, now time.Time) {
 		previous = current.Previous
 	}
 	t.sessions[scope] = streakSession{StreamID: message.StreamID, Day: day, Previous: previous}
+	if !ok || current.Day != day {
+		prefix := scope + "\x00"
+		for key, viewer := range t.viewers {
+			if strings.HasPrefix(key, prefix) && viewer.LastViewedDay != day && viewer.LastViewedDay != previous {
+				delete(t.viewers, key)
+			}
+		}
+	}
 	t.schedulePersistLocked()
 }
 
@@ -104,7 +112,7 @@ func (t *StreakTracker) Observe(message *Message) {
 	defer t.mu.Unlock()
 	scope := streakScope(message.Platform, message.Channel)
 	session, ok := t.sessions[scope]
-	if !ok {
+	if !ok || message.StreamID == "" || message.StreamID != session.StreamID {
 		return
 	}
 	key := viewerKey(scope, message.UserID, message.Author)

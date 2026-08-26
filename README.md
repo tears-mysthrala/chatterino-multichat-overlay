@@ -72,8 +72,9 @@ include `streak`, rendered as `🔥 N` for streaks greater than one.
 
 Twitch's current Chatterino Lua surface does not expose the upstream stream
 start timestamp or broadcast ID. Its session is therefore pinned when the
-streamer runs `/overlay` for that broadcast; restoring a saved panel never
-starts a viewing day by itself. YouTube uses `videoId`. Kick polls the public
+streamer runs `/overlay` for that broadcast, using a persisted local activation
+sequence as its session ID; restoring a saved panel never starts a viewing day
+by itself. YouTube uses `videoId`. Kick polls the public
 channel endpoint and only starts a session while it exposes a livestream ID.
 
 The body is limited to 64 KiB and validated before broadcast. The service

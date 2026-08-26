@@ -1,13 +1,16 @@
 local commands, requests, system_messages = {}, {}, {}
 local update_response = ""
+local sequence_value = ""
+local defer_session, deferred_session = false, nil
 local delayed, channel_ready = nil, false
 local original_open = io.open
 io.open = function(path, mode)
   local emitted = false
   return {
-    write = function() end,
+    write = function(_, value) if path == "streak-sequence.txt" then sequence_value = tostring(value) end end,
     read = function()
       if path == "control.key" then return string.rep("a", 44) end
+      if path == "streak-sequence.txt" then return sequence_value end
       return ""
     end,
     lines = function() return function()
@@ -48,6 +51,10 @@ _G.c2 = {
         self.success({ status = function() return 200 end, data = function() return "" end })
       elseif self.url:find("/control/updates", 1, true) then
         self.success({ status = function() return 200 end, data = function() return update_response end })
+	  elseif self.payload and self.payload:find('"kind":"stream_session"', 1, true) and defer_session then
+		deferred_session = self
+	  elseif self.success then
+		self.success({ status = function() return 202 end, data = function() return "" end })
       end
     end
     return request
@@ -83,8 +90,20 @@ snapshot_messages = {
 }
 delayed()
 assert(#requests == 6, "plugin messages must not be duplicated")
+defer_session = true
+commands["/overlay"]({ words = { "/overlay" }, channel = channel })
+snapshot_messages = {
+  { id = "native-2", login_name = "luz", display_name = "Luz", message_text = "durante alta de sesión",
+    elements = function() return {} end }
+}
+delayed()
+assert(#requests == 8, "message must wait for session acceptance")
+defer_session = false
+deferred_session.success({ status = function() return 202 end, data = function() return "" end })
+assert(#requests == 9 and requests[9].payload:find('"stream_id":"gilraennr:2"', 1, true),
+  "accepted session must flush buffered messages with a fresh ID")
 update_response = "Actualización disponible: test"
 commands["/overlay"]({ words = { "/overlay", "updates" }, channel = channel })
 assert(system_messages[#system_messages] == update_response, "manual update result was not shown")
 io.open = original_open
-print("bridge assertions: 12, failures: 0")
+print("bridge assertions: 14, failures: 0")
