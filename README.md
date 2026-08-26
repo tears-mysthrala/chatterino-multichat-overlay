@@ -28,6 +28,12 @@ messages; `/overlay other-panel` selects one explicitly. Enabled panels are
 remembered and reattached on later Chatterino starts. Kick and YouTube messages
 are filtered from this hook because their source plugins publish richer events.
 
+The shared agent checks stable releases for installed multichat plugins at most
+once every 24 hours and shows available updates as Chatterino system messages.
+It never downloads or installs them. Use `/overlay updates` for the cached
+status, `/overlay updates check` to refresh now, and `/overlay updates on|off`
+to enable or disable automatic checks.
+
 For live events, install version `0.2.0` or newer of
 [chatterino-kick-chat](https://github.com/tears-mysthrala/chatterino-kick-chat/releases)
 and/or version `1.4.0` or newer of

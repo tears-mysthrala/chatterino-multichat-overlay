@@ -3,6 +3,7 @@ local CONTROL_ENDPOINT = "http://127.0.0.1:8764/control/activate"
 local PANELS_FILE = "panels.txt"
 local handles, panels, seen = {}, {}, {}
 local heartbeat_started = false
+local updates_checked = false
 
 local function diagnostic(value)
   local file = io.open("status.txt", "w")
@@ -15,6 +16,38 @@ local function read_control_token()
   local token = file:read("*a")
   file:close()
   return tostring(token or ""):gsub("%s+$", "")
+end
+
+local function check_updates(channel, mode, force)
+  local token = read_control_token()
+  if not token then return end
+  local path, method = "/control/updates", c2.HTTPMethod.Get
+  if mode == "on" or mode == "off" then
+    path, method = "/control/updates/" .. mode, c2.HTTPMethod.Post
+  else
+    path = path .. "?manual=" .. (mode == "manual" and "1" or "0") .. "&force=" .. (force and "1" or "0")
+  end
+  pcall(function()
+    local request = c2.HTTPRequest.create(method, "http://127.0.0.1:8764" .. path)
+    request:set_header("Authorization", "Bearer " .. token)
+    request:set_timeout(7000)
+    if method == c2.HTTPMethod.Post then request:set_payload("{}") end
+    request:on_success(function(response)
+      local message = tostring(response:data() or "")
+      if message ~= "" then channel:add_system_message(message) end
+    end)
+    request:on_error(function()
+      if mode == "manual" then channel:add_system_message("No se pudieron comprobar las actualizaciones.") end
+    end)
+    request:finally(function() end)
+    request:execute()
+  end)
+end
+
+local function check_updates_once(channel)
+  if updates_checked then return end
+  updates_checked = true
+  check_updates(channel, "auto", false)
 end
 
 local function activate_overlay(callback)
@@ -180,7 +213,7 @@ local function attach_saved_panels(attempt)
     if not handles[panel] then
       local ok, channel = pcall(c2.Channel.by_name, panel)
       if ok and channel then
-        attach(channel, panel)
+        if attach(channel, panel) then check_updates_once(channel) end
       else
         diagnostic("waiting for panel, attempt " .. tostring(attempt))
       end
@@ -194,6 +227,13 @@ end
 
 c2.register_command("/overlay", function(ctx)
   local requested = tostring(ctx.words[2] or "")
+  if requested == "updates" then
+    local action = tostring(ctx.words[3] or "")
+    if action == "on" or action == "off" then check_updates(ctx.channel, action, false)
+    elseif action == "" or action == "check" then check_updates(ctx.channel, "manual", action == "check")
+    else ctx.channel:add_system_message("Uso: /overlay updates [check|on|off]") end
+    return
+  end
   local panel = normalized_panel(requested ~= "" and requested or ctx.channel:get_name())
   if not panel then
     ctx.channel:add_system_message("Overlay: panel inválido. Uso: /overlay [panel]")
@@ -211,6 +251,7 @@ c2.register_command("/overlay", function(ctx)
     end
     save_panels()
     ctx.channel:add_system_message("Overlay OBS activo: http://127.0.0.1:8765/overlay/" .. panel)
+    check_updates_once(ctx.channel)
   end)
 end)
 

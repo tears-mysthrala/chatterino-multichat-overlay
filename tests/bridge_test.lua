@@ -1,4 +1,5 @@
-local commands, requests = {}, {}
+local commands, requests, system_messages = {}, {}, {}
+local update_response = ""
 local delayed, channel_ready = nil, false
 local original_open = io.open
 io.open = function(path, mode)
@@ -27,12 +28,12 @@ local moderator_elements = setmetatable({ [1] = { type = "badge", tooltip = "Lea
 })
 local channel = {
   get_name = function() return "gilraennr" end,
-  add_system_message = function() end,
+  add_system_message = function(_, message) system_messages[#system_messages + 1] = message end,
   message_snapshot = function() return snapshot_messages end
 }
 
 _G.c2 = {
-  HTTPMethod = { Post = "POST" },
+  HTTPMethod = { Get = "GET", Post = "POST" },
   HTTPRequest = { create = function(_, url)
     local request = { url = url }
     function request:set_header() end
@@ -44,7 +45,9 @@ _G.c2 = {
     function request:execute()
       requests[#requests + 1] = self
       if self.url:find("/control/activate", 1, true) then
-        self.success({ status = function() return 200 end })
+        self.success({ status = function() return 200 end, data = function() return "" end })
+      elseif self.url:find("/control/updates", 1, true) then
+        self.success({ status = function() return 200 end, data = function() return update_response end })
       end
     end
     return request
@@ -59,7 +62,8 @@ assert(#requests == 1 and requests[1].url:find("/control/activate", 1, true), "s
 assert(type(delayed) == "function", "saved panel did not schedule a startup retry")
 channel_ready = true
 delayed()
-assert(#requests == 2 and requests[2].payload:find("mensaje anterior", 1, true), "Twitch history was not replayed")
+assert(#requests == 3 and requests[2].payload:find("mensaje anterior", 1, true), "Twitch history was not replayed")
+assert(requests[3].url:find("/control/updates", 1, true), "updates were not checked")
 assert(type(delayed) == "function", "Chatterino 2.5.5 polling was not scheduled")
 commands["/overlay"]({ words = { "/overlay" }, channel = channel })
 snapshot_messages = {
@@ -68,15 +72,18 @@ snapshot_messages = {
   snapshot_messages[1]
 }
 delayed()
-assert(#requests == 4, "native Twitch message was not published")
-assert(requests[4].payload:find('"platform":"twitch"', 1, true), "wrong platform")
-assert(requests[4].payload:find('"badges":["moderator"]', 1, true), "moderator badge missing")
+assert(#requests == 5, "native Twitch message was not published")
+assert(requests[5].payload:find('"platform":"twitch"', 1, true), "wrong platform")
+assert(requests[5].payload:find('"badges":["moderator"]', 1, true), "moderator badge missing")
 snapshot_messages = {
   { id = "yt-chat-1", display_name = "Cris", message_text = "duplicate" },
   { id = "kick-chat-1", display_name = "Bob", message_text = "duplicate" },
   snapshot_messages[1], snapshot_messages[2]
 }
 delayed()
-assert(#requests == 4, "plugin messages must not be duplicated")
+assert(#requests == 5, "plugin messages must not be duplicated")
+update_response = "Actualización disponible: test"
+commands["/overlay"]({ words = { "/overlay", "updates" }, channel = channel })
+assert(system_messages[#system_messages] == update_response, "manual update result was not shown")
 io.open = original_open
-print("bridge assertions: 9, failures: 0")
+print("bridge assertions: 11, failures: 0")

@@ -21,6 +21,7 @@ type Agent struct {
 	mu       sync.Mutex
 	child    *exec.Cmd
 	lastSeen time.Time
+	updates  *updater
 }
 
 func New(token, exePath string, port int) (*Agent, error) {
@@ -34,7 +35,7 @@ func New(token, exePath string, port int) (*Agent, error) {
 	if err != nil || info.IsDir() {
 		return nil, errors.New("overlay executable is unavailable")
 	}
-	a := &Agent{token: strings.TrimSpace(token), exePath: exePath, port: port}
+	a := &Agent{token: strings.TrimSpace(token), exePath: exePath, port: port, updates: newUpdater(exePath)}
 	go a.reapInactiveServer()
 	return a, nil
 }
@@ -44,6 +45,8 @@ func (a *Agent) Handler() http.Handler {
 	mux.HandleFunc("GET /control/health", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
 	mux.HandleFunc("POST /control/activate", a.activate)
 	mux.HandleFunc("POST /control/heartbeat", a.heartbeat)
+	mux.HandleFunc("GET /control/updates", a.updateStatus)
+	mux.HandleFunc("POST /control/updates/{setting}", a.updateSetting)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -89,6 +92,53 @@ func (a *Agent) activate(w http.ResponseWriter, _ *http.Request) {
 func (a *Agent) heartbeat(w http.ResponseWriter, _ *http.Request) {
 	a.touch()
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (a *Agent) updateStatus(w http.ResponseWriter, r *http.Request) {
+	manual := r.URL.Query().Get("manual") == "1"
+	force := r.URL.Query().Get("force") == "1"
+	result, err := a.updates.check(r.Context(), force)
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	if err != nil {
+		if err.Error() == "disabled" && manual {
+			fmt.Fprint(w, "Actualizaciones multichat desactivadas.")
+		} else if manual {
+			http.Error(w, "No se pudieron comprobar las actualizaciones.", http.StatusServiceUnavailable)
+		} else {
+			w.WriteHeader(http.StatusNoContent)
+		}
+		return
+	}
+	if len(result.Updates) == 0 {
+		if manual {
+			fmt.Fprint(w, "Todos los plugins multichat están actualizados.")
+		}
+		return
+	}
+	for i, update := range result.Updates {
+		if i > 0 {
+			fmt.Fprint(w, "\n")
+		}
+		fmt.Fprintf(w, "Actualización disponible: %s %s → %s · %s", update.Name, update.Installed, update.Latest, update.URL)
+	}
+}
+
+func (a *Agent) updateSetting(w http.ResponseWriter, r *http.Request) {
+	setting := r.PathValue("setting")
+	if setting != "on" && setting != "off" {
+		http.Error(w, "invalid setting", http.StatusBadRequest)
+		return
+	}
+	if err := a.updates.setEnabled(setting == "on"); err != nil {
+		http.Error(w, "settings unavailable", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	if setting == "on" {
+		fmt.Fprint(w, "Avisos de actualizaciones activados.")
+	} else {
+		fmt.Fprint(w, "Avisos de actualizaciones desactivados.")
+	}
 }
 
 func (a *Agent) touch() {
