@@ -1,11 +1,15 @@
 {
   "$schema": "https://raw.githubusercontent.com/Chatterino/chatterino2/master/docs/plugin-info.schema.json",
   "name": "chatterino-multichat-overlay",
-  "description": "Adds /overlay for the local OBS browser-source overlay.",
+  "description": "Adds /overlay and forwards native Twitch messages to the local OBS overlay.",
   "authors": ["tears-mysthrala"],
   "homepage": "https://github.com/tears-mysthrala/chatterino-multichat-overlay",
   "tags": ["commands", "utility", "obs", "overlay"],
-  "version": "0.1.1",
+  "version": "0.2.0",
   "license": "MIT",
-  "permissions": []
+  "permissions": [
+    { "type": "Network" },
+    { "type": "FilesystemRead" },
+    { "type": "FilesystemWrite" }
+  ]
 }

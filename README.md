@@ -21,7 +21,10 @@ It never binds to the LAN, sends telemetry or stores chat messages on disk.
 The release ZIP includes `install.ps1`. It installs the executable for the
 current Windows user, starts it automatically at login and installs the
 companion Chatterino plugin. After restarting Chatterino, `/overlay` prints the
-OBS URL for the current panel; `/overlay other-panel` selects one explicitly.
+OBS URL for the current panel and starts forwarding that panel's native Twitch
+messages; `/overlay other-panel` selects one explicitly. Enabled panels are
+remembered and reattached on later Chatterino starts. Kick and YouTube messages
+are filtered from this hook because their source plugins publish richer events.
 
 For live events, install version `0.2.0` or newer of
 [chatterino-kick-chat](https://github.com/tears-mysthrala/chatterino-kick-chat/releases)

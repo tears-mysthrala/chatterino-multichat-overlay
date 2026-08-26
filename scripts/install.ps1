@@ -7,7 +7,7 @@ $appRoot = Join-Path $env:LOCALAPPDATA "ChatterinoMultichatOverlay"
 $exeSource = Join-Path $PSScriptRoot "..\multichat-overlay.exe"
 
 if (-not (Test-Path -LiteralPath $exeSource)) { throw "No se encontró multichat-overlay.exe junto al instalador." }
-New-Item -ItemType Directory -Force -Path $pluginTarget, $appRoot | Out-Null
+New-Item -ItemType Directory -Force -Path $pluginTarget, (Join-Path $pluginTarget "data"), $appRoot | Out-Null
 Copy-Item -LiteralPath (Join-Path $pluginSource "init.lua") -Destination $pluginTarget -Force
 Copy-Item -LiteralPath (Join-Path $pluginSource "info.json") -Destination $pluginTarget -Force
 Copy-Item -LiteralPath $exeSource -Destination (Join-Path $appRoot "multichat-overlay.exe") -Force
