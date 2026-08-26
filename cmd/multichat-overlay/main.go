@@ -13,10 +13,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/tears-mysthrala/chatterino-multichat-overlay/internal/agent"
 	"github.com/tears-mysthrala/chatterino-multichat-overlay/internal/overlay"
 )
 
-const version = "0.3.2"
+const version = "0.4.0"
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
@@ -32,6 +33,8 @@ func run(args []string) error {
 	switch args[0] {
 	case "serve":
 		return serve(args[1:])
+	case "agent":
+		return runAgent(args[1:])
 	case "doctor":
 		return doctor(args[1:])
 	case "url":
@@ -56,6 +59,7 @@ Local browser-source overlay for Chatterino chat plugins.
 
 Usage:
   multichat-overlay serve [--port 8765]
+  multichat-overlay agent --token-file PATH [--port 8764]
   multichat-overlay doctor [--port 8765] [--json]
   multichat-overlay url <panel> [--port 8765]
   multichat-overlay emit <panel> <author> <message> [--platform test]
@@ -64,6 +68,46 @@ Usage:
 OBS URL example:
   http://127.0.0.1:8765/overlay/gilraennr
 `, version)
+}
+
+func runAgent(args []string) error {
+	fs := flag.NewFlagSet("agent", flag.ContinueOnError)
+	port := fs.Int("port", 8764, "loopback control port")
+	tokenFile := fs.String("token-file", "", "control token file")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if *tokenFile == "" {
+		return errors.New("--token-file is required")
+	}
+	token, err := os.ReadFile(*tokenFile)
+	if err != nil {
+		return fmt.Errorf("read control token: %w", err)
+	}
+	exePath, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	control, err := agent.New(string(token), exePath, *port)
+	if err != nil {
+		return err
+	}
+	httpServer := &http.Server{Addr: "127.0.0.1:" + strconv.Itoa(*port), Handler: control.Handler(), ReadHeaderTimeout: 3 * time.Second, ReadTimeout: 5 * time.Second, WriteTimeout: 5 * time.Second, IdleTimeout: 30 * time.Second}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	errCh := make(chan error, 1)
+	go func() { errCh <- httpServer.ListenAndServe() }()
+	select {
+	case <-ctx.Done():
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		return httpServer.Shutdown(shutdownCtx)
+	case err := <-errCh:
+		if errors.Is(err, http.ErrServerClosed) {
+			return nil
+		}
+		return err
+	}
 }
 
 func serve(args []string) error {

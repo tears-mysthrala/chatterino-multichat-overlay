@@ -1,10 +1,59 @@
 local ENDPOINT = "http://127.0.0.1:8765/api/events"
+local CONTROL_ENDPOINT = "http://127.0.0.1:8764/control/activate"
 local PANELS_FILE = "panels.txt"
 local handles, panels, seen = {}, {}, {}
+local heartbeat_started = false
 
 local function diagnostic(value)
   local file = io.open("status.txt", "w")
   if file then file:write(tostring(value), "\n"); file:close() end
+end
+
+local function read_control_token()
+  local file = io.open("control.key", "r")
+  if not file then return nil end
+  local token = file:read("*a")
+  file:close()
+  return tostring(token or ""):gsub("%s+$", "")
+end
+
+local function activate_overlay(callback)
+  local token = read_control_token()
+  if not token or #token < 32 then callback(false); return end
+  local ok = pcall(function()
+    local request = c2.HTTPRequest.create(c2.HTTPMethod.Post, CONTROL_ENDPOINT)
+    request:set_header("Authorization", "Bearer " .. token)
+    request:set_header("Content-Type", "application/json")
+    request:set_timeout(3000)
+    request:set_payload("{}")
+    request:on_success(function(response) callback(response:status() == 200) end)
+    request:on_error(function() callback(false) end)
+    request:finally(function() end)
+    request:execute()
+  end)
+  if not ok then callback(false) end
+end
+
+local function start_heartbeat()
+  if heartbeat_started or not c2.later then return end
+  heartbeat_started = true
+  local function heartbeat()
+    local token = read_control_token()
+    if token then
+      pcall(function()
+        local request = c2.HTTPRequest.create(c2.HTTPMethod.Post, "http://127.0.0.1:8764/control/heartbeat")
+        request:set_header("Authorization", "Bearer " .. token)
+        request:set_timeout(1000)
+        request:set_payload("{}")
+        request:on_success(function() end)
+        request:on_error(function() end)
+        request:finally(function() end)
+        request:execute()
+      end)
+    end
+    c2.later(heartbeat, 5000)
+  end
+  c2.later(heartbeat, 5000)
 end
 
 local function json_string(value)
@@ -150,14 +199,25 @@ c2.register_command("/overlay", function(ctx)
     ctx.channel:add_system_message("Overlay: panel inválido. Uso: /overlay [panel]")
     return
   end
-  if not attach(ctx.channel, panel) then
-    ctx.channel:add_system_message("Overlay: Chatterino no permite capturar este panel")
-    return
-  end
-  save_panels()
-  ctx.channel:add_system_message("Overlay OBS activo: http://127.0.0.1:8765/overlay/" .. panel)
+  activate_overlay(function(active)
+    if not active then
+      ctx.channel:add_system_message("Overlay: no se pudo activar el agente local; reinstala el plugin")
+      return
+    end
+    start_heartbeat()
+    if not attach(ctx.channel, panel) then
+      ctx.channel:add_system_message("Overlay: Chatterino no permite capturar este panel")
+      return
+    end
+    save_panels()
+    ctx.channel:add_system_message("Overlay OBS activo: http://127.0.0.1:8765/overlay/" .. panel)
+  end)
 end)
 
 restore_panels()
 diagnostic("plugin loaded")
-attach_saved_panels(1)
+if next(panels) then
+  activate_overlay(function(active)
+    if active then start_heartbeat(); attach_saved_panels(1) else diagnostic("overlay agent unavailable") end
+  end)
+end

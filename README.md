@@ -19,9 +19,10 @@ Running the executable without arguments starts the service on port `8765`.
 It never binds to the LAN, sends telemetry or stores chat messages on disk.
 
 The release ZIP includes `install.ps1`. The executable lives inside the
-companion plugin at `chatterino-multichat-overlay/bin/`; the installer starts
-it immediately, waits for a healthy HTTP response and starts it automatically
-at later Windows logins. After restarting Chatterino, `/overlay` prints the
+companion plugin at `chatterino-multichat-overlay/bin/`. The installer creates
+a hidden, non-administrator per-user Task Scheduler entry for its authenticated
+loopback control agent; the Startup folder is used only as a fallback. After
+restarting Chatterino, `/overlay` starts the HTTP overlay if needed and prints the
 OBS URL for the current panel and starts forwarding that panel's native Twitch
 messages; `/overlay other-panel` selects one explicitly. Enabled panels are
 remembered and reattached on later Chatterino starts. Kick and YouTube messages
@@ -50,6 +51,11 @@ Plugins POST JSON to `http://127.0.0.1:8765/api/events`:
 
 The body is limited to 64 KiB and validated before broadcast. The service
 keeps a bounded in-memory history per panel for Browser Source reconnects.
+The control agent listens only on `127.0.0.1:8764`, accepts no executable path
+or command arguments, and requires a random per-install bearer token stored in
+the plugin data directory with inheritance disabled for its file ACL.
+Chatterino sends a local heartbeat while the plugin is loaded; after it stops,
+the agent terminates the HTTP overlay within roughly 20 seconds.
 
 Platform favicons identify YouTube, Kick and Twitch without long labels.
 Moderator events use each platform's native badge treatment; other badge types
