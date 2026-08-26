@@ -94,6 +94,14 @@
       item.append(node);
     }
 
+	if (Number(data.streak) > 1) {
+	  const streak = document.createElement("span");
+	  streak.className = "message__streak";
+	  streak.textContent = `🔥 ${data.streak}`;
+	  streak.title = `${data.streak} jornadas de emisión consecutivas`;
+	  item.append(streak);
+	}
+
     if (data.author) {
       const author = document.createElement("span");
       author.className = "message__author";

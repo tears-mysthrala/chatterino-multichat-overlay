@@ -23,6 +23,10 @@ type Message struct {
 	Color     string   `json:"color,omitempty"`
 	Badges    []string `json:"badges,omitempty"`
 	Timestamp int64    `json:"timestamp,omitempty"`
+	Channel   string   `json:"channel,omitempty"`
+	UserID    string   `json:"user_id,omitempty"`
+	StreamID  string   `json:"stream_id,omitempty"`
+	Streak    int      `json:"streak,omitempty"`
 }
 
 func NormalizePanel(value string) string { return strings.ToLower(strings.TrimSpace(value)) }
@@ -41,7 +45,7 @@ func (m *Message) Validate() error {
 	if m.Kind == "" || len(m.Kind) > 48 {
 		return fmt.Errorf("invalid kind")
 	}
-	if len(m.ID) > 160 || len(m.Author) > 200 || len(m.Text) > 4000 || len(m.Color) > 32 {
+	if len(m.ID) > 160 || len(m.Author) > 200 || len(m.Text) > 4000 || len(m.Color) > 32 || len(m.Channel) > 200 || len(m.UserID) > 200 || len(m.StreamID) > 200 {
 		return fmt.Errorf("message field exceeds limit")
 	}
 	if len(m.Badges) > 32 {

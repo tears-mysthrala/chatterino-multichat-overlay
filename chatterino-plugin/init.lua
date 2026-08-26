@@ -1,7 +1,8 @@
 local ENDPOINT = "http://127.0.0.1:8765/api/events"
 local CONTROL_ENDPOINT = "http://127.0.0.1:8764/control/activate"
 local PANELS_FILE = "panels.txt"
-local handles, panels, seen = {}, {}, {}
+local STREAK_SEQUENCE_FILE = "streak-sequence.txt"
+local handles, panels, seen, streak_panels, streak_pending, activation_pending = {}, {}, {}, {}, {}, {}
 local heartbeat_started = false
 local updates_checked = false
 
@@ -99,6 +100,12 @@ end
 local function publish(panel, message)
   local id = tostring(message.id or "")
   if id:match("^kick%-chat%-") or id:match("^yt%-chat%-") then return end
+  if streak_pending[panel] then
+    local pending = streak_pending[panel]
+    if #pending >= 100 then table.remove(pending, 1) end
+    pending[#pending + 1] = message
+    return
+  end
   local author = tostring(message.display_name or message.login_name or "")
   local text = tostring(message.message_text or "")
   if author == "" or text == "" then return end
@@ -118,11 +125,18 @@ local function publish(panel, message)
   diagnostic("message seen on " .. panel)
   local encoded_badges = {}
   for _, badge in ipairs(badges) do encoded_badges[#encoded_badges + 1] = json_string(badge) end
+  local streak_fields = ""
+  if streak_panels[panel] then
+    streak_fields = '"channel":' .. json_string(panel) .. "," ..
+      '"user_id":' .. json_string(message.login_name or author) .. "," ..
+      '"stream_id":' .. json_string(streak_panels[panel]) .. ","
+  end
   local payload = "{" ..
     '"panel":' .. json_string(panel) .. "," ..
     '"platform":"twitch","kind":"text_message",' ..
     '"id":' .. json_string(id) .. "," ..
     '"author":' .. json_string(author) .. "," ..
+    streak_fields ..
     '"text":' .. json_string(text) .. "," ..
     '"color":' .. json_string(message.username_color or "") .. "," ..
     '"badges":[' .. table.concat(encoded_badges, ",") .. "]}"
@@ -136,6 +150,56 @@ local function publish(panel, message)
     request:finally(function() end)
     request:execute()
   end)
+end
+
+local function next_session_id(panel)
+  local sequence = 0
+  local input = io.open(STREAK_SEQUENCE_FILE, "r")
+  if input then sequence = tonumber(input:read("*a")) or 0; input:close() end
+  sequence = sequence + 1
+  local output = io.open(STREAK_SEQUENCE_FILE, "w")
+  if output then output:write(tostring(sequence), "\n"); output:close() end
+  return panel .. ":" .. tostring(sequence)
+end
+
+local function flush_streak_pending(panel, pending)
+  if streak_pending[panel] ~= pending then return end
+  streak_pending[panel] = nil
+  for _, message in ipairs(pending) do publish(panel, message) end
+end
+
+local function publish_session(panel, pending, on_complete)
+  local stream_id = next_session_id(panel)
+  pending = pending or {}
+  streak_pending[panel] = pending
+  local payload = "{" ..
+    '"panel":' .. json_string(panel) .. "," ..
+    '"platform":"twitch","kind":"stream_session","text":"",' ..
+    '"channel":' .. json_string(panel) .. "," ..
+    '"stream_id":' .. json_string(stream_id) .. "}"
+  local ok = pcall(function()
+    local request = c2.HTTPRequest.create(c2.HTTPMethod.Post, ENDPOINT)
+    request:set_header("Content-Type", "application/json")
+    request:set_timeout(750)
+    request:set_payload(payload)
+    request:on_success(function(response)
+      if response:status() == 202 then streak_panels[panel] = stream_id else streak_panels[panel] = nil end
+      flush_streak_pending(panel, pending)
+      if on_complete then on_complete() end
+    end)
+    request:on_error(function()
+      streak_panels[panel] = nil
+      flush_streak_pending(panel, pending)
+      if on_complete then on_complete() end
+    end)
+    request:finally(function() end)
+    request:execute()
+  end)
+  if not ok then
+    streak_panels[panel] = nil
+    flush_streak_pending(panel, pending)
+    if on_complete then on_complete() end
+  end
 end
 
 local function save_panels()
@@ -239,16 +303,35 @@ c2.register_command("/overlay", function(ctx)
     ctx.channel:add_system_message("Overlay: panel inválido. Uso: /overlay [panel]")
     return
   end
+  if activation_pending[panel] then
+    ctx.channel:add_system_message("Overlay: activación en curso.")
+    return
+  end
+  activation_pending[panel] = true
+  local pending = nil
+  if handles[panel] then
+    pending = {}
+    streak_pending[panel] = pending
+  end
+  streak_panels[panel] = nil
+  local function finish_activation()
+    activation_pending[panel] = nil
+  end
   activate_overlay(function(active)
     if not active then
+      if pending then flush_streak_pending(panel, pending) end
+      finish_activation()
       ctx.channel:add_system_message("Overlay: no se pudo activar el agente local; reinstala el plugin")
       return
     end
     start_heartbeat()
     if not attach(ctx.channel, panel) then
+      if pending then flush_streak_pending(panel, pending) end
+      finish_activation()
       ctx.channel:add_system_message("Overlay: Chatterino no permite capturar este panel")
       return
     end
+    publish_session(panel, pending, finish_activation)
     save_panels()
     ctx.channel:add_system_message("Overlay OBS activo: http://127.0.0.1:8765/overlay/" .. panel)
     check_updates_once(ctx.channel)
