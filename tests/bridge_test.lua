@@ -2,6 +2,7 @@ local commands, requests, system_messages = {}, {}, {}
 local update_response = ""
 local sequence_value = ""
 local defer_session, deferred_session = false, nil
+local defer_activation, deferred_activation = false, nil
 local delayed, channel_ready = nil, false
 local original_open = io.open
 io.open = function(path, mode)
@@ -48,7 +49,8 @@ _G.c2 = {
     function request:execute()
       requests[#requests + 1] = self
       if self.url:find("/control/activate", 1, true) then
-        self.success({ status = function() return 200 end, data = function() return "" end })
+		if defer_activation then deferred_activation = self
+		else self.success({ status = function() return 200 end, data = function() return "" end }) end
       elseif self.url:find("/control/updates", 1, true) then
         self.success({ status = function() return 200 end, data = function() return update_response end })
 	  elseif self.payload and self.payload:find('"kind":"stream_session"', 1, true) and defer_session then
@@ -110,8 +112,16 @@ defer_session = false
 deferred_session.success({ status = function() return 202 end, data = function() return "" end })
 assert(#requests == 10 and requests[10].payload:find('"stream_id":"gilraennr:2"', 1, true),
   "accepted session must flush buffered messages with a fresh ID")
+defer_activation = true
+commands["/overlay"]({ words = { "/overlay" }, channel = channel })
+commands["/overlay"]({ words = { "/overlay" }, channel = channel })
+assert(#requests == 11, "overlapping control activation must be coalesced")
+defer_activation = false
+deferred_activation.success({ status = function() return 200 end, data = function() return "" end })
+assert(#requests == 12 and requests[12].payload:find('"stream_id":"gilraennr:3"', 1, true),
+  "completed control activation must start exactly one new session")
 update_response = "Actualización disponible: test"
 commands["/overlay"]({ words = { "/overlay", "updates" }, channel = channel })
 assert(system_messages[#system_messages] == update_response, "manual update result was not shown")
 io.open = original_open
-print("bridge assertions: 15, failures: 0")
+print("bridge assertions: 17, failures: 0")

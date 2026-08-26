@@ -2,7 +2,7 @@ local ENDPOINT = "http://127.0.0.1:8765/api/events"
 local CONTROL_ENDPOINT = "http://127.0.0.1:8764/control/activate"
 local PANELS_FILE = "panels.txt"
 local STREAK_SEQUENCE_FILE = "streak-sequence.txt"
-local handles, panels, seen, streak_panels, streak_pending = {}, {}, {}, {}, {}
+local handles, panels, seen, streak_panels, streak_pending, activation_pending = {}, {}, {}, {}, {}, {}
 local heartbeat_started = false
 local updates_checked = false
 
@@ -298,7 +298,13 @@ c2.register_command("/overlay", function(ctx)
     ctx.channel:add_system_message("Overlay: panel inválido. Uso: /overlay [panel]")
     return
   end
+  if activation_pending[panel] then
+    ctx.channel:add_system_message("Overlay: activación en curso.")
+    return
+  end
+  activation_pending[panel] = true
   activate_overlay(function(active)
+    activation_pending[panel] = nil
     if not active then
       ctx.channel:add_system_message("Overlay: no se pudo activar el agente local; reinstala el plugin")
       return
