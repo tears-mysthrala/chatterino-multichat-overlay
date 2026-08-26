@@ -1,0 +1,11 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Chatterino/chatterino2/master/docs/plugin-info.schema.json",
+  "name": "chatterino-multichat-overlay",
+  "description": "Adds /overlay for the local OBS browser-source overlay.",
+  "authors": ["tears-mysthrala"],
+  "homepage": "https://github.com/tears-mysthrala/chatterino-multichat-overlay",
+  "tags": ["commands", "utility", "obs", "overlay"],
+  "version": "0.1.0",
+  "license": "MIT",
+  "permissions": []
+}
