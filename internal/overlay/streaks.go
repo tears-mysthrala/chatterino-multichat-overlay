@@ -50,9 +50,11 @@ func NewStreakTracker(file string) (*StreakTracker, error) {
 		var saved streakSnapshot
 		if err := json.Unmarshal(raw, &saved); err != nil {
 			backup, backupErr := os.ReadFile(file + ".bak")
-			if backupErr != nil || json.Unmarshal(backup, &saved) != nil {
+			var recovered streakSnapshot
+			if backupErr != nil || json.Unmarshal(backup, &recovered) != nil {
 				return nil, fmt.Errorf("decode streak state: %w", err)
 			}
+			saved = recovered
 		}
 		if saved.Sessions != nil {
 			t.sessions = saved.Sessions
@@ -107,7 +109,7 @@ func (t *StreakTracker) Start(message Message, now time.Time) {
 }
 
 func (t *StreakTracker) Observe(message *Message) {
-	if message == nil || message.Author == "" || message.Channel == "" {
+	if message == nil || (message.Author == "" && message.UserID == "") || message.Channel == "" {
 		return
 	}
 	t.mu.Lock()

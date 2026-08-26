@@ -19,7 +19,8 @@ func TestCorruptStreakStateFailsClosed(t *testing.T) {
 
 func TestStreakStateRecoversFromBackup(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "streaks.json")
-	if err := os.WriteFile(path, []byte("{"), 0600); err != nil {
+	partial := `{"sessions":{"corrupt":{"stream_id":"bad","day":"2099-01-01"}},"viewers":`
+	if err := os.WriteFile(path, []byte(partial), 0600); err != nil {
 		t.Fatal(err)
 	}
 	valid := `{"sessions":{},"viewers":{"youtube\\u0000UC1\\u0000u1":{"count":3,"last_viewed_day":"2026-08-25"}}}`
@@ -32,6 +33,9 @@ func TestStreakStateRecoversFromBackup(t *testing.T) {
 	}
 	if len(tracker.viewers) != 1 {
 		t.Fatalf("backup viewers = %d", len(tracker.viewers))
+	}
+	if len(tracker.sessions) != 0 {
+		t.Fatalf("partial primary sessions survived recovery: %d", len(tracker.sessions))
 	}
 }
 
@@ -155,6 +159,16 @@ func TestStableIDsCannotCollideWithAuthorFallbacks(t *testing.T) {
 	tracker.Observe(&fallback)
 	if len(tracker.viewers) != 2 {
 		t.Fatalf("stable and fallback identities merged: %d", len(tracker.viewers))
+	}
+}
+
+func TestStableIDDoesNotRequireDisplayAuthor(t *testing.T) {
+	tracker, _ := NewStreakTracker("")
+	tracker.Start(Message{Platform: "future", Channel: "channel", StreamID: "live"}, streakTime(t, "2026-08-25 20:00"))
+	message := Message{Platform: "future", Channel: "channel", StreamID: "live", UserID: "opaque-id"}
+	tracker.Observe(&message)
+	if message.Streak != 1 || len(tracker.viewers) != 1 {
+		t.Fatal("stable-ID-only viewer was not observed")
 	}
 }
 
