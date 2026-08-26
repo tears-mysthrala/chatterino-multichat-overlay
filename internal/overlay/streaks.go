@@ -137,11 +137,12 @@ func (t *StreakTracker) schedulePersistLocked() {
 		return
 	}
 	if t.timer != nil {
-		t.timer.Stop()
+		return
 	}
 	t.timer = time.AfterFunc(250*time.Millisecond, func() {
 		t.mu.Lock()
 		defer t.mu.Unlock()
+		t.timer = nil
 		t.persistLocked()
 	})
 }

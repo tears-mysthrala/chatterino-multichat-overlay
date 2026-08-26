@@ -35,6 +35,23 @@ func TestStreakStateRecoversFromBackup(t *testing.T) {
 	}
 }
 
+func TestContinuousUpdatesCannotPostponePersistence(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "streaks.json")
+	tracker, err := NewStreakTracker(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tracker.Start(Message{Platform: "youtube", Channel: "UC1", StreamID: "live"}, time.Now())
+	for index := 0; index < 4; index++ {
+		time.Sleep(100 * time.Millisecond)
+		message := Message{Platform: "youtube", Channel: "UC1", StreamID: "live", UserID: string(rune('a' + index)), Author: "viewer"}
+		tracker.Observe(&message)
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("state was not persisted during continuous updates: %v", err)
+	}
+}
+
 func streakTime(t *testing.T, value string) time.Time {
 	t.Helper()
 	parsed, err := time.ParseInLocation("2006-01-02 15:04", value, time.Local)
