@@ -146,6 +146,18 @@ func TestOpaqueChannelIDsPreserveCase(t *testing.T) {
 	}
 }
 
+func TestStableIDsCannotCollideWithAuthorFallbacks(t *testing.T) {
+	tracker, _ := NewStreakTracker("")
+	tracker.Start(Message{Platform: "future", Channel: "channel", StreamID: "live"}, streakTime(t, "2026-08-25 20:00"))
+	stable := Message{Platform: "future", Channel: "channel", StreamID: "live", UserID: "alice", Author: "Someone"}
+	fallback := Message{Platform: "future", Channel: "channel", StreamID: "live", Author: "Alice"}
+	tracker.Observe(&stable)
+	tracker.Observe(&fallback)
+	if len(tracker.viewers) != 2 {
+		t.Fatalf("stable and fallback identities merged: %d", len(tracker.viewers))
+	}
+}
+
 func TestOldViewerStateIsPrunedOnNewBroadcastDay(t *testing.T) {
 	tracker, _ := NewStreakTracker("")
 	scope := streakScope("kick", "caster")

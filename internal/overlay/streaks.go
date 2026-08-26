@@ -70,8 +70,10 @@ func streakScope(platform, channel string) string {
 
 func viewerKey(scope, userID, author string) string {
 	identity := strings.TrimSpace(userID)
-	if identity == "" {
-		identity = strings.ToLower(strings.TrimSpace(author))
+	if identity != "" {
+		identity = "id:" + identity
+	} else {
+		identity = "author:" + strings.ToLower(strings.TrimSpace(author))
 	}
 	return scope + "\x00" + identity
 }
