@@ -49,3 +49,7 @@ Plugins POST JSON to `http://127.0.0.1:8765/api/events`:
 
 The body is limited to 64 KiB and validated before broadcast. The service
 keeps a bounded in-memory history per panel for Browser Source reconnects.
+
+Platform favicons identify YouTube, Kick and Twitch without long labels.
+Moderator events use each platform's native badge treatment; other badge types
+remain readable text until a matching official asset is available.

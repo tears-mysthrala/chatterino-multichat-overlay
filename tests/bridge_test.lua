@@ -35,11 +35,13 @@ _G.c2 = {
 dofile("chatterino-plugin/init.lua")
 commands["/overlay"]({ words = { "/overlay" }, channel = channel })
 assert(type(appended) == "function", "Twitch listener was not attached")
-appended({ id = "native-1", display_name = "Ana", message_text = "hola", username_color = "#112233" })
+appended({ id = "native-1", display_name = "Ana", message_text = "hola", username_color = "#112233",
+  elements = function() return { { type = "mod-badge" } } end })
 assert(#requests == 1, "native Twitch message was not published")
 assert(requests[1].payload:find('"platform":"twitch"', 1, true), "wrong platform")
+assert(requests[1].payload:find('"badges":["moderator"]', 1, true), "moderator badge missing")
 appended({ id = "kick-chat-1", display_name = "Bob", message_text = "duplicate" })
 appended({ id = "yt-chat-1", display_name = "Cris", message_text = "duplicate" })
 assert(#requests == 1, "plugin messages must not be duplicated")
 io.open = original_open
-print("bridge assertions: 4, failures: 0")
+print("bridge assertions: 5, failures: 0")

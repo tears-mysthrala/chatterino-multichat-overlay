@@ -95,3 +95,12 @@ func TestBrowserAssetsAreNotCached(t *testing.T) {
 		t.Fatalf("cache-control = %q", recorder.Header().Get("Cache-Control"))
 	}
 }
+
+func TestPlatformIconsAreEmbedded(t *testing.T) {
+	for _, name := range []string{"kick.png", "youtube.png", "twitch.png"} {
+		asset, err := webFiles.ReadFile("web/" + name)
+		if err != nil || len(asset) == 0 {
+			t.Fatalf("missing %s", name)
+		}
+	}
+}

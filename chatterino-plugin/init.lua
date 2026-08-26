@@ -15,13 +15,22 @@ local function publish(panel, message)
   local author = tostring(message.display_name or message.login_name or "")
   local text = tostring(message.message_text or "")
   if author == "" or text == "" then return end
+  local badges = {}
+  pcall(function()
+    for _, element in ipairs(message:elements()) do
+      if tostring(element.type) == "mod-badge" then badges[#badges + 1] = "moderator" end
+    end
+  end)
+  local encoded_badges = {}
+  for _, badge in ipairs(badges) do encoded_badges[#encoded_badges + 1] = json_string(badge) end
   local payload = "{" ..
     '"panel":' .. json_string(panel) .. "," ..
     '"platform":"twitch","kind":"text_message",' ..
     '"id":' .. json_string(id) .. "," ..
     '"author":' .. json_string(author) .. "," ..
     '"text":' .. json_string(text) .. "," ..
-    '"color":' .. json_string(message.username_color or "") .. "}"
+    '"color":' .. json_string(message.username_color or "") .. "," ..
+    '"badges":[' .. table.concat(encoded_badges, ",") .. "]}"
   pcall(function()
     local request = c2.HTTPRequest.create(c2.HTTPMethod.Post, ENDPOINT)
     request:set_header("Content-Type", "application/json")
