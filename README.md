@@ -18,9 +18,10 @@ multichat-overlay.exe url gilraennr
 Running the executable without arguments starts the service on port `8765`.
 It never binds to the LAN, sends telemetry or stores chat messages on disk.
 
-The release ZIP includes `install.ps1`. It installs the executable for the
-current Windows user, starts it automatically at login and installs the
-companion Chatterino plugin. After restarting Chatterino, `/overlay` prints the
+The release ZIP includes `install.ps1`. The executable lives inside the
+companion plugin at `chatterino-multichat-overlay/bin/`; the installer starts
+it immediately, waits for a healthy HTTP response and starts it automatically
+at later Windows logins. After restarting Chatterino, `/overlay` prints the
 OBS URL for the current panel and starts forwarding that panel's native Twitch
 messages; `/overlay other-panel` selects one explicitly. Enabled panels are
 remembered and reattached on later Chatterino starts. Kick and YouTube messages

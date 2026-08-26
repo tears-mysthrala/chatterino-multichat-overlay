@@ -1,6 +1,11 @@
 local ENDPOINT = "http://127.0.0.1:8765/api/events"
-local PANELS_FILE = "data/panels.txt"
-local handles, panels = {}, {}
+local PANELS_FILE = "panels.txt"
+local handles, panels, seen = {}, {}, {}
+
+local function diagnostic(value)
+  local file = io.open("status.txt", "w")
+  if file then file:write(tostring(value), "\n"); file:close() end
+end
 
 local function json_string(value)
   value = tostring(value or "")
@@ -10,6 +15,7 @@ local function json_string(value)
 end
 
 local function publish(panel, message)
+  diagnostic("message seen on " .. panel)
   local id = tostring(message.id or "")
   if id:match("^kick%-chat%-") or id:match("^yt%-chat%-") then return end
   local author = tostring(message.display_name or message.login_name or "")
@@ -53,13 +59,46 @@ local function save_panels()
   file:close()
 end
 
+local function process_snapshot(channel, panel)
+  local ok, messages = pcall(function() return channel:message_snapshot(100) end)
+  -- Chatterino returns a userdata wrapper around the C++ snapshot, not a Lua table.
+  if not ok or messages == nil then return false end
+  seen[panel] = seen[panel] or {}
+  for index = #messages, 1, -1 do
+    local message = messages[index]
+    local id = tostring(message.id or "")
+    if id ~= "" and not seen[panel][id] then
+      seen[panel][id] = true
+      publish(panel, message)
+    end
+  end
+  return true
+end
+
 local function attach(channel, panel)
   if handles[panel] then return true end
   local ok, handle = pcall(function()
     return channel:on_message_appended(function(message) publish(panel, message) end)
   end)
-  if not ok or not handle then return false end
-  handles[panel], panels[panel] = handle, true
+  if ok and handle then
+    handles[panel], panels[panel] = handle, true
+    process_snapshot(channel, panel)
+    diagnostic("attached callback to " .. panel)
+    return true
+  end
+
+  if not c2.later or not process_snapshot(channel, panel) then
+    diagnostic("attach failed for " .. panel)
+    return false
+  end
+  handles[panel], panels[panel] = true, true
+  local function poll()
+    if not handles[panel] then return end
+    process_snapshot(channel, panel)
+    c2.later(poll, 500)
+  end
+  c2.later(poll, 500)
+  diagnostic("attached polling to " .. panel)
   return true
 end
 
@@ -74,12 +113,27 @@ local function restore_panels()
   if not file then return end
   for line in file:lines() do
     local panel = normalized_panel(line)
-    if panel then
-      local ok, channel = pcall(c2.Channel.by_name, panel)
-      if ok and channel then attach(channel, panel) end
-    end
+    if panel then panels[panel] = true end
   end
   file:close()
+end
+
+local function attach_saved_panels(attempt)
+  local pending = false
+  for panel in pairs(panels) do
+    if not handles[panel] then
+      local ok, channel = pcall(c2.Channel.by_name, panel)
+      if ok and channel then
+        attach(channel, panel)
+      else
+        diagnostic("waiting for panel, attempt " .. tostring(attempt))
+      end
+      if not handles[panel] then pending = true end
+    end
+  end
+  if pending and attempt < 60 and c2.later then
+    c2.later(function() attach_saved_panels(attempt + 1) end, 500)
+  end
 end
 
 c2.register_command("/overlay", function(ctx)
@@ -98,3 +152,5 @@ c2.register_command("/overlay", function(ctx)
 end)
 
 restore_panels()
+diagnostic("plugin loaded")
+attach_saved_panels(1)

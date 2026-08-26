@@ -15,6 +15,14 @@ func NewHub(historyLimit int) *Hub {
 
 func (h *Hub) Publish(message Message) {
 	h.mu.Lock()
+	if message.ID != "" {
+		for _, existing := range h.history[message.Panel] {
+			if existing.Platform == message.Platform && existing.ID == message.ID {
+				h.mu.Unlock()
+				return
+			}
+		}
+	}
 	history := append(h.history[message.Panel], message)
 	if len(history) > h.historyLimit {
 		history = history[len(history)-h.historyLimit:]

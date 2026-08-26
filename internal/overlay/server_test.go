@@ -104,3 +104,14 @@ func TestPlatformIconsAreEmbedded(t *testing.T) {
 		}
 	}
 }
+
+func TestHubDeduplicatesPlatformMessageIDs(t *testing.T) {
+	hub := NewHub(10)
+	message := Message{Panel: "gilraennr", Platform: "twitch", ID: "same", Text: "hello"}
+	hub.Publish(message)
+	hub.Publish(message)
+	_, _, count := hub.Stats()
+	if count != 1 {
+		t.Fatalf("messages = %d, want 1", count)
+	}
+}
