@@ -7,14 +7,13 @@
   --chat-shadow: 0 2px 2px rgb(0 0 0 / 75%), 0 0 8px rgb(0 0 0 / 55%);
   --chat-card: rgb(7 10 16 / 72%);
   --chat-radius: 4px;
-  --chat-ttl: 30000ms;
 }
 
 * { box-sizing: border-box; }
 html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: transparent; }
 body { font-family: var(--chat-font); color: #f7f8fb; }
 .messages { position: absolute; inset: auto auto 0 0; display: flex; width: min(var(--chat-width), 100vw); max-height: 100vh; flex-direction: column; justify-content: flex-end; gap: var(--chat-gap); padding: 16px; }
-.message { --signal: #8b949e; position: relative; padding: 9px 14px 10px 17px; overflow-wrap: anywhere; background: var(--chat-card); border-radius: var(--chat-radius); box-shadow: var(--chat-shadow); font-size: var(--chat-size); line-height: var(--chat-line-height); animation: message-in 220ms cubic-bezier(.2,.8,.2,1) both, message-out 300ms ease-in var(--chat-ttl) forwards; }
+.message { --signal: #8b949e; position: relative; padding: 9px 14px 10px 17px; overflow-wrap: anywhere; background: var(--chat-card); border-radius: var(--chat-radius); box-shadow: var(--chat-shadow); font-size: var(--chat-size); line-height: var(--chat-line-height); animation: message-in 220ms cubic-bezier(.2,.8,.2,1) both; }
 .message::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--signal); }
 .message.platform-kick { --signal: #53fc18; }
 .message.platform-youtube { --signal: #ff3b30; }
@@ -26,5 +25,4 @@ body { font-family: var(--chat-font); color: #f7f8fb; }
 .status { position: absolute; right: 10px; bottom: 8px; padding: 4px 7px; background: rgb(7 10 16 / 60%); color: #aeb6c2; border-radius: 3px; font: 11px/1.2 "Cascadia Mono", monospace; opacity: 0; transition: opacity 150ms ease; }
 .status.is-error { opacity: 1; color: #ffb4ab; }
 @keyframes message-in { from { opacity: 0; transform: translateX(-18px); } to { opacity: 1; transform: none; } }
-@keyframes message-out { to { opacity: 0; transform: translateY(-8px); } }
 @media (prefers-reduced-motion: reduce) { .message { animation: none; } }

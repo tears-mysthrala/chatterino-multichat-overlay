@@ -39,7 +39,6 @@
     item.append(text);
     messages.append(item);
     while (messages.children.length > 100) messages.firstElementChild.remove();
-    item.addEventListener("animationend", event => { if (event.animationName === "message-out") item.remove(); });
   }
 
   source.onopen = () => { status.classList.remove("is-error"); status.textContent = `Live · ${panel}`; };

@@ -33,7 +33,8 @@ and/or version `1.4.0` or newer of
 Create a Browser Source with the panel URL, a transparent background and a
 viewport such as `720 × 900`. OBS Custom CSS can override the documented
 variables in `internal/overlay/web/overlay.css`, including `--chat-size`,
-`--chat-card`, `--chat-width`, `--chat-radius` and `--chat-ttl`.
+`--chat-card`, `--chat-width` and `--chat-radius`. Messages remain visible
+until newer messages displace them from the 100-item in-memory history.
 
 ## Event API
 

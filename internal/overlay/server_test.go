@@ -72,3 +72,26 @@ func TestOverlayEscapesPanelByValidation(t *testing.T) {
 		t.Fatal("overlay not rendered")
 	}
 }
+
+func TestMessagesDoNotExpireOnATimer(t *testing.T) {
+	css, err := webFiles.ReadFile("web/overlay.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	js, err := webFiles.ReadFile("web/overlay.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(css), "message-out") || strings.Contains(string(js), "animationend") {
+		t.Fatal("overlay messages must persist until displaced by history limit")
+	}
+}
+
+func TestBrowserAssetsAreNotCached(t *testing.T) {
+	request := httptest.NewRequest(http.MethodGet, "/assets/overlay.js", nil)
+	recorder := httptest.NewRecorder()
+	NewServer(10).Handler().ServeHTTP(recorder, request)
+	if recorder.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("cache-control = %q", recorder.Header().Get("Cache-Control"))
+	}
+}
