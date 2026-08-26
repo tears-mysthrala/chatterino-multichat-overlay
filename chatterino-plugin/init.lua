@@ -168,6 +168,7 @@ local function flush_streak_pending(panel, pending)
 end
 
 local function publish_session(panel)
+  if streak_pending[panel] then return end
   local stream_id = next_session_id(panel)
   local pending = {}
   streak_pending[panel] = pending

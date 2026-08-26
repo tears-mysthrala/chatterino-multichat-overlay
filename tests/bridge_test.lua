@@ -92,18 +92,26 @@ delayed()
 assert(#requests == 6, "plugin messages must not be duplicated")
 defer_session = true
 commands["/overlay"]({ words = { "/overlay" }, channel = channel })
+commands["/overlay"]({ words = { "/overlay" }, channel = channel })
+local pending_sessions = 0
+for _, request in ipairs(requests) do
+  if request.payload and request.payload:find('"kind":"stream_session"', 1, true) then
+    pending_sessions = pending_sessions + 1
+  end
+end
+assert(pending_sessions == 2, "overlapping activation must reuse the pending session")
 snapshot_messages = {
   { id = "native-2", login_name = "luz", display_name = "Luz", message_text = "durante alta de sesión",
     elements = function() return {} end }
 }
 delayed()
-assert(#requests == 8, "message must wait for session acceptance")
+assert(#requests == 9, "message must wait for session acceptance")
 defer_session = false
 deferred_session.success({ status = function() return 202 end, data = function() return "" end })
-assert(#requests == 9 and requests[9].payload:find('"stream_id":"gilraennr:2"', 1, true),
+assert(#requests == 10 and requests[10].payload:find('"stream_id":"gilraennr:2"', 1, true),
   "accepted session must flush buffered messages with a fresh ID")
 update_response = "Actualización disponible: test"
 commands["/overlay"]({ words = { "/overlay", "updates" }, channel = channel })
 assert(system_messages[#system_messages] == update_response, "manual update result was not shown")
 io.open = original_open
-print("bridge assertions: 14, failures: 0")
+print("bridge assertions: 15, failures: 0")
