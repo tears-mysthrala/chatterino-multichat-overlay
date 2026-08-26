@@ -8,7 +8,7 @@ if (Test-Path -LiteralPath $stageRoot) { Remove-Item -LiteralPath $stageRoot -Re
 if (Test-Path -LiteralPath $zipPath) { Remove-Item -LiteralPath $zipPath -Force }
 New-Item -ItemType Directory -Force -Path (Join-Path $stageRoot "scripts"), (Join-Path $stageRoot "chatterino-plugin\bin") | Out-Null
 
-go build -trimpath -ldflags "-s -w" -o (Join-Path $stageRoot "chatterino-plugin\bin\multichat-overlay.exe") (Join-Path $repoRoot "cmd\multichat-overlay")
+go build -trimpath -ldflags "-s -w -H=windowsgui" -o (Join-Path $stageRoot "chatterino-plugin\bin\multichat-overlay.exe") (Join-Path $repoRoot "cmd\multichat-overlay")
 Copy-Item -LiteralPath (Join-Path $repoRoot "scripts\install.ps1") -Destination (Join-Path $stageRoot "scripts")
 Copy-Item -LiteralPath (Join-Path $repoRoot "chatterino-plugin\init.lua"), (Join-Path $repoRoot "chatterino-plugin\info.json") -Destination (Join-Path $stageRoot "chatterino-plugin")
 Copy-Item -LiteralPath (Join-Path $repoRoot "README.md"), (Join-Path $repoRoot "LICENSE") -Destination $stageRoot

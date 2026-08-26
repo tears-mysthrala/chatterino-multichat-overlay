@@ -17,7 +17,7 @@ import (
 	"github.com/tears-mysthrala/chatterino-multichat-overlay/internal/overlay"
 )
 
-const version = "0.4.0"
+const version = "0.4.1"
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
