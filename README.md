@@ -60,3 +60,11 @@ the agent terminates the HTTP overlay within roughly 20 seconds.
 Platform favicons identify YouTube, Kick and Twitch without long labels.
 Moderator events use each platform's native badge treatment; other badge types
 remain readable text until a matching official asset is available.
+
+## Adding platforms
+
+New platform plugins are optional adapters and do not require changes to the
+overlay server when they publish the normalized event contract. See
+[`CONTRIBUTING.md`](CONTRIBUTING.md) for the adapter boundaries, schema and
+compatibility checklist, and [`SECURITY.md`](SECURITY.md) for the common threat
+model and credential rules.
