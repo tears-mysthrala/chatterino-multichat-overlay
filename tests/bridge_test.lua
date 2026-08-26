@@ -16,6 +16,11 @@ end
 local snapshot_messages = {
   { id = "native-history", display_name = "History", message_text = "mensaje anterior", elements = function() return {} end }
 }
+local moderator_elements = setmetatable({ [1] = { type = "badge", tooltip = "Lead Moderator" } }, {
+  __index = function(_, key)
+    if key == "ipairs" then error("snapshot elements are not a regular Lua table") end
+  end
+})
 local channel = {
   get_name = function() return "gilraennr" end,
   add_system_message = function() end,
@@ -49,7 +54,7 @@ assert(type(delayed) == "function", "Chatterino 2.5.5 polling was not scheduled"
 commands["/overlay"]({ words = { "/overlay" }, channel = channel })
 snapshot_messages = {
   { id = "native-1", display_name = "Ana", message_text = "hola", username_color = "#112233",
-    elements = function() return { { type = "mod-badge" } } end },
+    elements = function() return moderator_elements end },
   snapshot_messages[1]
 }
 delayed()

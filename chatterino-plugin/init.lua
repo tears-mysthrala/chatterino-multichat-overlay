@@ -15,7 +15,6 @@ local function json_string(value)
 end
 
 local function publish(panel, message)
-  diagnostic("message seen on " .. panel)
   local id = tostring(message.id or "")
   if id:match("^kick%-chat%-") or id:match("^yt%-chat%-") then return end
   local author = tostring(message.display_name or message.login_name or "")
@@ -23,10 +22,18 @@ local function publish(panel, message)
   if author == "" or text == "" then return end
   local badges = {}
   pcall(function()
-    for _, element in ipairs(message:elements()) do
-      if tostring(element.type) == "mod-badge" then badges[#badges + 1] = "moderator" end
+    local elements = message:elements()
+    for index = 1, #elements do
+      local element = elements[index]
+      local element_type = tostring(element.type)
+      local tooltip = tostring(element.tooltip or ""):lower()
+      if element_type == "mod-badge" or tooltip:find("moderator", 1, true) or
+          tooltip:find("moderador", 1, true) then
+        badges[#badges + 1] = "moderator"
+      end
     end
   end)
+  diagnostic("message seen on " .. panel)
   local encoded_badges = {}
   for _, badge in ipairs(badges) do encoded_badges[#encoded_badges + 1] = json_string(badge) end
   local payload = "{" ..
