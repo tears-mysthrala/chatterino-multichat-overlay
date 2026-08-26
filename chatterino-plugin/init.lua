@@ -167,10 +167,9 @@ local function flush_streak_pending(panel, pending)
   for _, message in ipairs(pending) do publish(panel, message) end
 end
 
-local function publish_session(panel)
-  if streak_pending[panel] then return end
+local function publish_session(panel, pending, on_complete)
   local stream_id = next_session_id(panel)
-  local pending = {}
+  pending = pending or {}
   streak_pending[panel] = pending
   local payload = "{" ..
     '"panel":' .. json_string(panel) .. "," ..
@@ -185,15 +184,21 @@ local function publish_session(panel)
     request:on_success(function(response)
       if response:status() == 202 then streak_panels[panel] = stream_id else streak_panels[panel] = nil end
       flush_streak_pending(panel, pending)
+      if on_complete then on_complete() end
     end)
     request:on_error(function()
       streak_panels[panel] = nil
       flush_streak_pending(panel, pending)
+      if on_complete then on_complete() end
     end)
     request:finally(function() end)
     request:execute()
   end)
-  if not ok then streak_panels[panel] = nil; flush_streak_pending(panel, pending) end
+  if not ok then
+    streak_panels[panel] = nil
+    flush_streak_pending(panel, pending)
+    if on_complete then on_complete() end
+  end
 end
 
 local function save_panels()
@@ -222,8 +227,7 @@ local function process_snapshot(channel, panel)
   return true
 end
 
-local function attach(channel, panel, start_session)
-  if start_session then publish_session(panel) end
+local function attach(channel, panel)
   if handles[panel] then return true end
   local ok, handle = pcall(function()
     return channel:on_message_appended(function(message) publish(panel, message) end)
@@ -272,7 +276,7 @@ local function attach_saved_panels(attempt)
     if not handles[panel] then
       local ok, channel = pcall(c2.Channel.by_name, panel)
       if ok and channel then
-        if attach(channel, panel, false) then check_updates_once(channel) end
+        if attach(channel, panel) then check_updates_once(channel) end
       else
         diagnostic("waiting for panel, attempt " .. tostring(attempt))
       end
@@ -303,17 +307,30 @@ c2.register_command("/overlay", function(ctx)
     return
   end
   activation_pending[panel] = true
-  activate_overlay(function(active)
+  local pending = nil
+  if handles[panel] then
+    pending = {}
+    streak_pending[panel] = pending
+  end
+  streak_panels[panel] = nil
+  local function finish_activation()
     activation_pending[panel] = nil
+  end
+  activate_overlay(function(active)
     if not active then
+      if pending then flush_streak_pending(panel, pending) end
+      finish_activation()
       ctx.channel:add_system_message("Overlay: no se pudo activar el agente local; reinstala el plugin")
       return
     end
     start_heartbeat()
-    if not attach(ctx.channel, panel, true) then
+    if not attach(ctx.channel, panel) then
+      if pending then flush_streak_pending(panel, pending) end
+      finish_activation()
       ctx.channel:add_system_message("Overlay: Chatterino no permite capturar este panel")
       return
     end
+    publish_session(panel, pending, finish_activation)
     save_panels()
     ctx.channel:add_system_message("Overlay OBS activo: http://127.0.0.1:8765/overlay/" .. panel)
     check_updates_once(ctx.channel)

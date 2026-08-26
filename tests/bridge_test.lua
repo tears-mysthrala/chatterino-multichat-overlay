@@ -107,21 +107,33 @@ snapshot_messages = {
     elements = function() return {} end }
 }
 delayed()
-assert(#requests == 9, "message must wait for session acceptance")
+assert(#requests == 8, "message must wait for session acceptance")
 defer_session = false
 deferred_session.success({ status = function() return 202 end, data = function() return "" end })
-assert(#requests == 10 and requests[10].payload:find('"stream_id":"gilraennr:2"', 1, true),
+assert(#requests == 9 and requests[9].payload:find('"stream_id":"gilraennr:2"', 1, true),
   "accepted session must flush buffered messages with a fresh ID")
 defer_activation = true
 commands["/overlay"]({ words = { "/overlay" }, channel = channel })
 commands["/overlay"]({ words = { "/overlay" }, channel = channel })
-assert(#requests == 11, "overlapping control activation must be coalesced")
+assert(#requests == 10, "overlapping control activation must be coalesced")
 defer_activation = false
 deferred_activation.success({ status = function() return 200 end, data = function() return "" end })
-assert(#requests == 12 and requests[12].payload:find('"stream_id":"gilraennr:3"', 1, true),
+assert(#requests == 11 and requests[11].payload:find('"stream_id":"gilraennr:3"', 1, true),
   "completed control activation must start exactly one new session")
+local fresh_channel = {
+  get_name = function() return "fresh" end,
+  add_system_message = function(_, message) system_messages[#system_messages + 1] = message end,
+  message_snapshot = function()
+    return { { id = "before-activation", display_name = "Old", message_text = "histórico" } }
+  end
+}
+commands["/overlay"]({ words = { "/overlay", "fresh" }, channel = fresh_channel })
+assert(requests[13].payload:find("histórico", 1, true) and not requests[13].payload:find('"stream_id"', 1, true),
+  "pre-activation snapshot must not count toward the new session")
+assert(requests[14].payload:find('"kind":"stream_session"', 1, true),
+  "fresh panel must start its session after replaying history")
 update_response = "Actualización disponible: test"
 commands["/overlay"]({ words = { "/overlay", "updates" }, channel = channel })
 assert(system_messages[#system_messages] == update_response, "manual update result was not shown")
 io.open = original_open
-print("bridge assertions: 17, failures: 0")
+print("bridge assertions: 19, failures: 0")
