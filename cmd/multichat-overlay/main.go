@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"syscall"
 	"time"
@@ -17,7 +18,7 @@ import (
 	"github.com/tears-mysthrala/chatterino-multichat-overlay/internal/overlay"
 )
 
-const version = "0.5.0"
+const version = "0.5.1"
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
@@ -123,7 +124,15 @@ func serve(args []string) error {
 	if *history < 1 || *history > 500 {
 		return errors.New("history must be between 1 and 500")
 	}
-	server := overlay.NewServer(*history)
+	exePath, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	historyFile := filepath.Join(filepath.Dir(filepath.Dir(exePath)), "data", "overlay-history.json")
+	server, err := overlay.NewPersistentServer(*history, historyFile)
+	if err != nil {
+		return fmt.Errorf("load overlay history: %w", err)
+	}
 	httpServer := &http.Server{
 		Addr: "127.0.0.1:" + strconv.Itoa(*port), Handler: server.Handler(),
 		ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second,

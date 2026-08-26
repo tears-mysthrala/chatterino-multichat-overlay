@@ -66,3 +66,26 @@ func (h *Hub) Stats() (panels, subscribers, messages int) {
 	}
 	return
 }
+
+func (h *Hub) Snapshot() map[string][]Message {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	out := make(map[string][]Message, len(h.history))
+	for panel, history := range h.history {
+		out[panel] = append([]Message(nil), history...)
+	}
+	return out
+}
+
+func (h *Hub) Restore(snapshot map[string][]Message) {
+	for panel, history := range snapshot {
+		if !ValidPanel(panel) {
+			continue
+		}
+		for _, message := range history {
+			if message.Validate() == nil && message.Panel == panel {
+				h.Publish(message)
+			}
+		}
+	}
+}

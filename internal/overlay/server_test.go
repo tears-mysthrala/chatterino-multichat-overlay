@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestMessageValidation(t *testing.T) {
@@ -113,5 +114,25 @@ func TestHubDeduplicatesPlatformMessageIDs(t *testing.T) {
 	_, _, count := hub.Stats()
 	if count != 1 {
 		t.Fatalf("messages = %d, want 1", count)
+	}
+}
+
+func TestPersistentServerRestoresNormalizedHistory(t *testing.T) {
+	path := t.TempDir() + "/overlay-history.json"
+	first, err := NewPersistentServer(10, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first.hub.Publish(Message{Panel: "gilraennr", Platform: "youtube", Kind: "text_message", ID: "yt-1", Author: "Mio", Text: "hola", Badges: []string{"moderator"}})
+	first.schedulePersist()
+	time.Sleep(400 * time.Millisecond)
+
+	second, err := NewPersistentServer(10, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	history := second.hub.Snapshot()["gilraennr"]
+	if len(history) != 1 || history[0].Platform != "youtube" || len(history[0].Badges) != 1 {
+		t.Fatalf("history was not restored: %#v", history)
 	}
 }

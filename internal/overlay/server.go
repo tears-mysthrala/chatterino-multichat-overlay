@@ -7,7 +7,10 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -15,12 +18,61 @@ import (
 var webFiles embed.FS
 
 type Server struct {
-	hub     *Hub
-	started time.Time
+	hub          *Hub
+	started      time.Time
+	historyFile  string
+	persistMu    sync.Mutex
+	persistTimer *time.Timer
 }
 
 func NewServer(historyLimit int) *Server {
 	return &Server{hub: NewHub(historyLimit), started: time.Now()}
+}
+
+func NewPersistentServer(historyLimit int, historyFile string) (*Server, error) {
+	s := NewServer(historyLimit)
+	s.historyFile = historyFile
+	raw, err := os.ReadFile(historyFile)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
+	if len(raw) > 0 {
+		var snapshot map[string][]Message
+		if json.Unmarshal(raw, &snapshot) == nil {
+			s.hub.Restore(snapshot)
+		}
+	}
+	return s, nil
+}
+
+func (s *Server) schedulePersist() {
+	if s.historyFile == "" {
+		return
+	}
+	s.persistMu.Lock()
+	defer s.persistMu.Unlock()
+	if s.persistTimer != nil {
+		s.persistTimer.Stop()
+	}
+	s.persistTimer = time.AfterFunc(250*time.Millisecond, s.persist)
+}
+
+func (s *Server) persist() {
+	s.persistMu.Lock()
+	defer s.persistMu.Unlock()
+	raw, err := json.Marshal(s.hub.Snapshot())
+	if err != nil {
+		return
+	}
+	if os.MkdirAll(filepath.Dir(s.historyFile), 0700) != nil {
+		return
+	}
+	temporary := s.historyFile + ".tmp"
+	if os.WriteFile(temporary, raw, 0600) != nil {
+		return
+	}
+	_ = os.Remove(s.historyFile)
+	_ = os.Rename(temporary, s.historyFile)
 }
 
 func (s *Server) Handler() http.Handler {
@@ -129,6 +181,7 @@ func (s *Server) ingest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.hub.Publish(message)
+	s.schedulePersist()
 	w.WriteHeader(http.StatusAccepted)
 }
 

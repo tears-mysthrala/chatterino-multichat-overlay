@@ -16,7 +16,9 @@ multichat-overlay.exe url gilraennr
 ```
 
 Running the executable without arguments starts the service on port `8765`.
-It never binds to the LAN, sends telemetry or stores chat messages on disk.
+It never binds to the LAN or sends telemetry. Its bounded 100-message history
+is stored locally in the plugin's `data/` directory so restarting the listener
+does not lose platform metadata or badges.
 
 The release ZIP includes `install.ps1`. The executable lives inside the
 companion plugin at `chatterino-multichat-overlay/bin/`. The installer creates
@@ -45,7 +47,7 @@ Create a Browser Source with the panel URL, a transparent background and a
 viewport such as `720 × 900`. OBS Custom CSS can override the documented
 variables in `internal/overlay/web/overlay.css`, including `--chat-size`,
 `--chat-card`, `--chat-width` and `--chat-radius`. Messages remain visible
-until newer messages displace them from the 100-item in-memory history.
+until newer messages displace them from the 100-item local history.
 
 ## Event API
 
@@ -56,7 +58,8 @@ Plugins POST JSON to `http://127.0.0.1:8765/api/events`:
 ```
 
 The body is limited to 64 KiB and validated before broadcast. The service
-keeps a bounded in-memory history per panel for Browser Source reconnects.
+keeps a bounded local history per panel for Browser Source and listener
+reconnects.
 The control agent listens only on `127.0.0.1:8764`, accepts no executable path
 or command arguments, and requires a random per-install bearer token stored in
 the plugin data directory with inheritance disabled for its file ACL.

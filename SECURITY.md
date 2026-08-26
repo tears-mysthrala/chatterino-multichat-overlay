@@ -86,9 +86,13 @@ project assets, never assembled from chat input.
 
 ## Privacy and retention
 
-Messages are retained only in bounded process memory for browser reconnection.
-The overlay does not persist chat history or send telemetry. Diagnostics should
-contain health state and error categories, not message bodies or credentials.
+Up to 100 normalized messages per panel are retained in
+`data/overlay-history.json` for browser and listener reconnection. The file is
+created in the current user's plugin data directory and never transmitted.
+Newer messages displace older entries. Removing this file clears retained overlay history without
+affecting platform-plugin configuration. The overlay sends no telemetry.
+Diagnostics should contain health state and error categories, not message
+bodies or credentials.
 
 Security reports and test fixtures must use synthetic or consented content. Do
 not attach another user's tokens, private messages, cookies or full chat export.
