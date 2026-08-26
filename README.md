@@ -54,8 +54,27 @@ until newer messages displace them from the 100-item local history.
 Plugins POST JSON to `http://127.0.0.1:8765/api/events`:
 
 ```json
-{"panel":"gilraennr","platform":"kick","kind":"text_message","id":"1","author":"viewer","text":"hello","badges":["subscriber"]}
+{"panel":"gilraennr","platform":"kick","kind":"text_message","id":"1","author":"viewer","user_id":"42","channel":"caster","stream_id":"live-99","text":"hello","badges":["subscriber"]}
 ```
+
+Before the first message of a broadcast, adapters send a `stream_session`
+event with `panel`, `platform`, `channel` and `stream_id`. The local service
+pins that broadcast to the local calendar day on which the session was first
+detected. Messages after midnight therefore keep the original broadcast day.
+Two different stream IDs first seen on the same day count as one viewing day.
+
+The service stores streaks in `data/streaks.json`, separately for every
+platform, channel and stable `user_id`. If a platform has no stable user ID,
+the normalized display name is used as a documented fallback. A viewer's
+streak advances only when they appeared during the preceding broadcast day;
+missing that day resets the next appearance to one. Eligible overlay messages
+include `streak`, rendered as `🔥 N` for streaks greater than one.
+
+Twitch's current Chatterino Lua surface does not expose the upstream stream
+start timestamp or broadcast ID. Its session is therefore pinned when the
+streamer runs `/overlay` for that broadcast; restoring a saved panel never
+starts a viewing day by itself. YouTube uses `videoId`. Kick polls the public
+channel endpoint and only starts a session while it exposes a livestream ID.
 
 The body is limited to 64 KiB and validated before broadcast. The service
 keeps a bounded local history per panel for Browser Source and listener

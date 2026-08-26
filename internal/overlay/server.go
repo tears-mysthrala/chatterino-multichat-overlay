@@ -23,15 +23,22 @@ type Server struct {
 	historyFile  string
 	persistMu    sync.Mutex
 	persistTimer *time.Timer
+	streaks      *StreakTracker
 }
 
 func NewServer(historyLimit int) *Server {
-	return &Server{hub: NewHub(historyLimit), started: time.Now()}
+	tracker, _ := NewStreakTracker("")
+	return &Server{hub: NewHub(historyLimit), started: time.Now(), streaks: tracker}
 }
 
 func NewPersistentServer(historyLimit int, historyFile string) (*Server, error) {
 	s := NewServer(historyLimit)
 	s.historyFile = historyFile
+	tracker, err := NewStreakTracker(filepath.Join(filepath.Dir(historyFile), "streaks.json"))
+	if err != nil {
+		return nil, err
+	}
+	s.streaks = tracker
 	raw, err := os.ReadFile(historyFile)
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
@@ -179,6 +186,19 @@ func (s *Server) ingest(w http.ResponseWriter, r *http.Request) {
 	if err := message.Validate(); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
+	}
+	message.Streak = 0
+	if message.Kind == "stream_session" {
+		if message.Channel == "" || message.StreamID == "" {
+			http.Error(w, "stream session requires channel and stream_id", http.StatusBadRequest)
+			return
+		}
+		s.streaks.Start(message, time.Now())
+		w.WriteHeader(http.StatusAccepted)
+		return
+	}
+	if message.Kind == "text_message" {
+		s.streaks.Observe(&message)
 	}
 	s.hub.Publish(message)
 	s.schedulePersist()

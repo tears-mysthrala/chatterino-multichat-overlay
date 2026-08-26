@@ -64,6 +64,36 @@ func TestRejectsUnknownFieldsAndInvalidPanel(t *testing.T) {
 	}
 }
 
+func TestRejectsIncompleteStreamSession(t *testing.T) {
+	server := httptest.NewServer(NewServer(10).Handler())
+	defer server.Close()
+	response, err := http.Post(server.URL+"/api/events", "application/json", strings.NewReader(`{"panel":"chat","platform":"twitch","kind":"stream_session","text":"","channel":"caster"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusBadRequest {
+		t.Fatalf("status %d", response.StatusCode)
+	}
+}
+
+func TestIncomingStreakCannotForgeOverlayCounter(t *testing.T) {
+	s := NewServer(10)
+	s.streaks.Start(Message{Platform: "youtube", Channel: "UC1", StreamID: "live-1"}, time.Now())
+	server := httptest.NewServer(s.Handler())
+	defer server.Close()
+	payload := `{"panel":"chat","platform":"youtube","kind":"text_message","author":"Ana","user_id":"u1","channel":"UC1","stream_id":"live-1","text":"hola","streak":999}`
+	response, err := http.Post(server.URL+"/api/events", "application/json", strings.NewReader(payload))
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	history := s.hub.Snapshot()["chat"]
+	if len(history) != 1 || history[0].Streak != 1 {
+		t.Fatalf("forged streak accepted: %#v", history)
+	}
+}
+
 func TestOverlayEscapesPanelByValidation(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/overlay/gilraennr", nil)
 	request.SetPathValue("panel", "gilraennr")

@@ -66,24 +66,25 @@ assert(#requests == 3 and requests[2].payload:find("mensaje anterior", 1, true),
 assert(requests[3].url:find("/control/updates", 1, true), "updates were not checked")
 assert(type(delayed) == "function", "Chatterino 2.5.5 polling was not scheduled")
 commands["/overlay"]({ words = { "/overlay" }, channel = channel })
+assert(requests[5].payload:find('"kind":"stream_session"', 1, true), "Twitch session was not published")
 snapshot_messages = {
   { id = "native-1", display_name = "Ana", message_text = "hola", username_color = "#112233",
     elements = function() return moderator_elements end },
   snapshot_messages[1]
 }
 delayed()
-assert(#requests == 5, "native Twitch message was not published")
-assert(requests[5].payload:find('"platform":"twitch"', 1, true), "wrong platform")
-assert(requests[5].payload:find('"badges":["moderator"]', 1, true), "moderator badge missing")
+assert(#requests == 6, "native Twitch message was not published")
+assert(requests[6].payload:find('"platform":"twitch"', 1, true), "wrong platform")
+assert(requests[6].payload:find('"badges":["moderator"]', 1, true), "moderator badge missing")
 snapshot_messages = {
   { id = "yt-chat-1", display_name = "Cris", message_text = "duplicate" },
   { id = "kick-chat-1", display_name = "Bob", message_text = "duplicate" },
   snapshot_messages[1], snapshot_messages[2]
 }
 delayed()
-assert(#requests == 5, "plugin messages must not be duplicated")
+assert(#requests == 6, "plugin messages must not be duplicated")
 update_response = "Actualización disponible: test"
 commands["/overlay"]({ words = { "/overlay", "updates" }, channel = channel })
 assert(system_messages[#system_messages] == update_response, "manual update result was not shown")
 io.open = original_open
-print("bridge assertions: 11, failures: 0")
+print("bridge assertions: 12, failures: 0")

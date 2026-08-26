@@ -40,6 +40,9 @@ POST http://127.0.0.1:8765/api/events
   "kind": "text_message",
   "id": "bilibili-chat-123",
   "author": "viewer",
+  "user_id": "stable-viewer-id",
+  "channel": "stable-channel-id",
+  "stream_id": "stable-broadcast-id",
   "text": "hello",
   "color": "#66ccff",
   "badges": ["moderator"],
@@ -56,6 +59,9 @@ The server currently enforces:
 | `kind` | yes | Stable lowercase event kind; max 48 characters |
 | `id` | recommended | Stable platform message ID; max 160 characters |
 | `author` | no | Display name; max 200 characters |
+| `user_id` | recommended for rachas | Stable platform user ID; max 200 characters |
+| `channel` | required for rachas | Stable platform channel ID; max 200 characters |
+| `stream_id` | required for rachas | Stable broadcast ID; max 200 characters |
 | `text` | yes | Plain-text fallback; max 4,000 characters |
 | `color` | no | Validated display color; max 32 characters |
 | `badges` | no | At most 32 normalized labels, 80 characters each |
@@ -64,6 +70,12 @@ The server currently enforces:
 Use globally unambiguous IDs such as `<platform>-chat-<upstream-id>`. Replayed
 events with the same platform and ID are deduplicated. Never derive IDs from
 message text alone.
+
+Before publishing messages for a newly detected broadcast, send
+`kind: "stream_session"` with `panel`, `platform`, `channel`, `stream_id` and
+an empty `text`. The server pins the session to its first-seen local calendar
+day. Do not emit this event merely because a saved panel was restored or a chat
+transport connected while the channel was offline.
 
 Start with these event kinds where the platform supports them:
 

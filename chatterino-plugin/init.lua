@@ -1,7 +1,7 @@
 local ENDPOINT = "http://127.0.0.1:8765/api/events"
 local CONTROL_ENDPOINT = "http://127.0.0.1:8764/control/activate"
 local PANELS_FILE = "panels.txt"
-local handles, panels, seen = {}, {}, {}
+local handles, panels, seen, streak_panels = {}, {}, {}, {}
 local heartbeat_started = false
 local updates_checked = false
 
@@ -118,11 +118,18 @@ local function publish(panel, message)
   diagnostic("message seen on " .. panel)
   local encoded_badges = {}
   for _, badge in ipairs(badges) do encoded_badges[#encoded_badges + 1] = json_string(badge) end
+  local streak_fields = ""
+  if streak_panels[panel] then
+    streak_fields = '"channel":' .. json_string(panel) .. "," ..
+      '"user_id":' .. json_string(message.login_name or author) .. "," ..
+      '"stream_id":' .. json_string(panel .. ":active") .. ","
+  end
   local payload = "{" ..
     '"panel":' .. json_string(panel) .. "," ..
     '"platform":"twitch","kind":"text_message",' ..
     '"id":' .. json_string(id) .. "," ..
     '"author":' .. json_string(author) .. "," ..
+    streak_fields ..
     '"text":' .. json_string(text) .. "," ..
     '"color":' .. json_string(message.username_color or "") .. "," ..
     '"badges":[' .. table.concat(encoded_badges, ",") .. "]}"
@@ -134,6 +141,23 @@ local function publish(panel, message)
     request:on_success(function() end)
     request:on_error(function() end)
     request:finally(function() end)
+    request:execute()
+  end)
+end
+
+local function publish_session(panel)
+  streak_panels[panel] = true
+  local payload = "{" ..
+    '"panel":' .. json_string(panel) .. "," ..
+    '"platform":"twitch","kind":"stream_session","text":"",' ..
+    '"channel":' .. json_string(panel) .. "," ..
+    '"stream_id":' .. json_string(panel .. ":active") .. "}"
+  pcall(function()
+    local request = c2.HTTPRequest.create(c2.HTTPMethod.Post, ENDPOINT)
+    request:set_header("Content-Type", "application/json")
+    request:set_timeout(750)
+    request:set_payload(payload)
+    request:on_success(function() end); request:on_error(function() end); request:finally(function() end)
     request:execute()
   end)
 end
@@ -164,7 +188,8 @@ local function process_snapshot(channel, panel)
   return true
 end
 
-local function attach(channel, panel)
+local function attach(channel, panel, start_session)
+  if start_session then publish_session(panel) end
   if handles[panel] then return true end
   local ok, handle = pcall(function()
     return channel:on_message_appended(function(message) publish(panel, message) end)
@@ -213,7 +238,7 @@ local function attach_saved_panels(attempt)
     if not handles[panel] then
       local ok, channel = pcall(c2.Channel.by_name, panel)
       if ok and channel then
-        if attach(channel, panel) then check_updates_once(channel) end
+        if attach(channel, panel, false) then check_updates_once(channel) end
       else
         diagnostic("waiting for panel, attempt " .. tostring(attempt))
       end
@@ -245,7 +270,7 @@ c2.register_command("/overlay", function(ctx)
       return
     end
     start_heartbeat()
-    if not attach(ctx.channel, panel) then
+    if not attach(ctx.channel, panel, true) then
       ctx.channel:add_system_message("Overlay: Chatterino no permite capturar este panel")
       return
     end
