@@ -7,15 +7,84 @@ read-only events from Chatterino plugins and serves panels only on loopback.
 http://127.0.0.1:8765/overlay/gilraennr
 ```
 
-## Run
+## Install on Windows
+
+You do not need administrator access or any programming tools.
+
+1. Open the [Releases page](https://github.com/tears-mysthrala/chatterino-multichat-overlay/releases)
+   and select the latest release that is not marked **Pre-release**.
+2. Under **Assets**, download the Windows x64 ZIP. Do not download the files
+   named **Source code**.
+3. In File Explorer, right-click the downloaded ZIP, select **Extract all**,
+   and then select **Extract**.
+4. Open the extracted `chatterino-multichat-overlay-windows-x64` folder and
+   then its `scripts` folder.
+5. Right-click `install.ps1` and select **Run with PowerShell**. On Windows 11,
+   this option may be under **Show more options**. Do not run it as
+   administrator.
+6. Wait for the message `Instalado y agente activo`. Restart Chatterino.
+7. In Chatterino, open **Settings → Plugins**, turn on **Enable plugins**, and
+   enable `chatterino-multichat-overlay` if it is not already enabled.
+8. In the input box of a normal channel panel, enter `/overlay`. Chatterino
+   will print the local URL to use in OBS.
+
+The installer copies the plugin to Chatterino's plugin folder and starts its
+local helper automatically. You can delete the downloaded ZIP and extracted
+folder after installation.
+
+### If “Run with PowerShell” is missing or immediately closes
+
+Open the extracted `chatterino-multichat-overlay-windows-x64` folder. Right-click
+an empty area of the folder and select **Open in Terminal**. Copy this entire
+line, paste it into the terminal, and press Enter:
 
 ```powershell
-multichat-overlay.exe serve
-multichat-overlay.exe doctor
-multichat-overlay.exe url gilraennr
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\install.ps1
 ```
 
-Running the executable without arguments starts the service on port `8765`.
+This changes the script policy only for that one installation command. It does
+not change the computer-wide PowerShell setting and does not require an
+administrator account.
+
+### Updating without losing settings
+
+Close Chatterino, download and extract the new release, and run its
+`scripts\install.ps1` in the same way. The installer replaces the program files
+but keeps the existing `data` folder, which contains the overlay settings and
+viewing streaks. Restart Chatterino and run `/overlay` again.
+
+## Optional download verification
+
+Each release includes a `.sha256` file. It lets you check that the ZIP was not
+damaged or changed during download. This check uses PowerShell but does not
+install or modify anything:
+
+1. Download both the Windows ZIP and its `.sha256` file into the same folder.
+2. In File Explorer, right-click the ZIP and select **Copy as path**.
+3. Open PowerShell from the Start menu, type `Get-FileHash ` (including the
+   final space), paste the copied path, type ` -Algorithm SHA256`, and press
+   Enter.
+4. Compare the displayed **Hash** with the long sequence in the `.sha256`
+   file. They must match; uppercase and lowercase do not matter. If they do
+   not match, delete both downloads and download them again.
+
+## Everyday use
+
+Most users never need to open PowerShell after installation. In a normal
+Chatterino channel panel, enter `/overlay`. The plugin starts the local service
+and prints the correct OBS URL for that panel. Enter `/overlay other-panel` to
+select a different named panel.
+
+The following commands are only for advanced troubleshooting. Run them from
+the plugin's `bin` folder if support asks you to do so:
+
+```powershell
+.\multichat-overlay.exe serve
+.\multichat-overlay.exe doctor
+.\multichat-overlay.exe url gilraennr
+```
+
+Running the executable without arguments also starts the service on port `8765`.
 It never binds to the LAN or sends telemetry. Its bounded 100-message history
 is stored locally in the plugin's `data/` directory so restarting the listener
 does not lose platform metadata or badges.
@@ -24,9 +93,9 @@ The release ZIP includes `install.ps1`. The executable lives inside the
 companion plugin at `chatterino-multichat-overlay/bin/`. The installer creates
 a hidden, non-administrator per-user Task Scheduler entry for its authenticated
 loopback control agent; the Startup folder is used only as a fallback. After
-restarting Chatterino, `/overlay` starts the HTTP overlay if needed and prints the
-OBS URL for the current panel and starts forwarding that panel's native Twitch
-messages; `/overlay other-panel` selects one explicitly. Enabled panels are
+restarting Chatterino, `/overlay` starts the HTTP overlay if needed, prints the
+OBS URL for the current panel, and starts forwarding that panel's native Twitch
+messages. Enabled panels are
 remembered and reattached on later Chatterino starts. Kick and YouTube messages
 are filtered from this hook because their source plugins publish richer events.
 
