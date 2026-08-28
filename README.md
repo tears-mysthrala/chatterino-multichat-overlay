@@ -9,7 +9,22 @@ http://127.0.0.1:8765/overlay/gilraennr
 
 ## Install on Windows
 
-You do not need administrator access or any programming tools.
+The installer requires **PowerShell 7**. Windows PowerShell 5.1, the older app
+included with Windows, is not sufficient. PowerShell 7 is Microsoft's current,
+side-by-side version and receives its own updates.
+
+### Install PowerShell 7 first
+
+1. Open **Microsoft Store** from the Start menu.
+2. Search for `PowerShell`.
+3. Select **PowerShell**, published by **Microsoft Corporation**, and select
+   **Install**. Do not choose **PowerShell Preview**.
+4. When the installation finishes, close Microsoft Store.
+
+Microsoft also documents alternative installation methods in
+[Install PowerShell 7 on Windows](https://learn.microsoft.com/powershell/scripting/install/install-powershell-on-windows).
+
+### Install the overlay
 
 1. Open the [Releases page](https://github.com/tears-mysthrala/chatterino-multichat-overlay/releases)
    and select the latest release that is not marked **Pre-release**.
@@ -17,34 +32,33 @@ You do not need administrator access or any programming tools.
    named **Source code**.
 3. In File Explorer, right-click the downloaded ZIP, select **Extract all**,
    and then select **Extract**.
-4. Open the extracted `chatterino-multichat-overlay-windows-x64` folder and
-   then its `scripts` folder.
-5. Right-click `install.ps1` and select **Run with PowerShell**. On Windows 11,
-   this option may be under **Show more options**. Do not run it as
-   administrator.
-6. Wait for the message `Instalado y agente activo`. Restart Chatterino.
-7. In Chatterino, open **Settings → Plugins**, turn on **Enable plugins**, and
+4. Open the extracted `chatterino-multichat-overlay-windows-x64` folder.
+5. Right-click an empty area inside that folder and select **Open in Terminal**.
+6. Copy the following line, paste it into the terminal, and press Enter. Do not
+   open the terminal as administrator.
+
+   ```powershell
+   pwsh.exe -NoProfile -File .\scripts\install.ps1
+   ```
+
+7. Wait for the message `Instalado y agente activo`, and then close the
+   terminal.
+8. Restart Chatterino.
+9. In Chatterino, open **Settings → Plugins**, turn on **Enable plugins**, and
    enable `chatterino-multichat-overlay` if it is not already enabled.
-8. In the input box of a normal channel panel, enter `/overlay`. Chatterino
-   will print the local URL to use in OBS.
+10. In the input box of a normal channel panel, enter `/overlay`. Chatterino
+    will print the local URL to use in OBS.
 
 The installer copies the plugin to Chatterino's plugin folder and starts its
 local helper automatically. You can delete the downloaded ZIP and extracted
 folder after installation.
 
-### If “Run with PowerShell” is missing or immediately closes
+### If the terminal says that `pwsh.exe` does not exist
 
-Open the extracted `chatterino-multichat-overlay-windows-x64` folder. Right-click
-an empty area of the folder and select **Open in Terminal**. Copy this entire
-line, paste it into the terminal, and press Enter:
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\install.ps1
-```
-
-This changes the script policy only for that one installation command. It does
-not change the computer-wide PowerShell setting and does not require an
-administrator account.
+Close the terminal, confirm that **PowerShell** appears in the Start menu, and
+open the terminal from the extracted folder again. If it still fails, restart
+Windows once so the new application path is available, then repeat the command.
+Do not replace `pwsh.exe` with `powershell.exe`: they are different versions.
 
 ### Updating without losing settings
 
