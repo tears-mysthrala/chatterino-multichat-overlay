@@ -41,6 +41,11 @@ try {
   $definition.Settings.Hidden = $true
   $definition.Settings.StartWhenAvailable = $true
   $definition.Settings.MultipleInstances = 2
+  $definition.Settings.ExecutionTimeLimit = "PT0S"
+  $definition.Settings.DisallowStartIfOnBatteries = $false
+  $definition.Settings.StopIfGoingOnBatteries = $false
+  $definition.Settings.RestartCount = 3
+  $definition.Settings.RestartInterval = "PT1M"
   $trigger = $definition.Triggers.Create(9)
   $trigger.UserId = [Security.Principal.WindowsIdentity]::GetCurrent().Name
   $action = $definition.Actions.Create(0)
@@ -48,6 +53,7 @@ try {
   $action.Arguments = "agent --token-file `"$tokenTarget`""
   $action.WorkingDirectory = $binTarget
   $userId = [Security.Principal.WindowsIdentity]::GetCurrent().Name
+  # TASK_CREATE_OR_UPDATE replaces the existing broken definition in place.
   $registered = $folder.RegisterTaskDefinition($taskName, $definition, 6, $userId, $null, 3, $null)
   $registered.Run($null) | Out-Null
   $taskInstalled = $true
