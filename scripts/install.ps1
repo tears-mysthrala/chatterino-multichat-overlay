@@ -8,6 +8,8 @@ $exeSource = Join-Path $PSScriptRoot "..\chatterino-plugin\bin\multichat-overlay
 $exeTarget = Join-Path $binTarget "multichat-overlay.exe"
 $tokenTarget = Join-Path $pluginTarget "data\control.key"
 $taskName = "Chatterino Multichat Overlay Agent"
+$taskCreateOrUpdate = 6
+$taskLogonInteractiveToken = 3
 
 if (-not (Test-Path -LiteralPath $exeSource)) { throw "No se encontró el servidor dentro del plugin." }
 New-Item -ItemType Directory -Force -Path $pluginTarget, (Join-Path $pluginTarget "data"), $binTarget | Out-Null
@@ -53,8 +55,9 @@ try {
   $action.Arguments = "agent --token-file `"$tokenTarget`""
   $action.WorkingDirectory = $binTarget
   $userId = [Security.Principal.WindowsIdentity]::GetCurrent().Name
-  # TASK_CREATE_OR_UPDATE replaces the existing broken definition in place.
-  $registered = $folder.RegisterTaskDefinition($taskName, $definition, 6, $userId, $null, 3, $null)
+  $registered = $folder.RegisterTaskDefinition(
+    $taskName, $definition, $taskCreateOrUpdate, $userId, $null, $taskLogonInteractiveToken, $null
+  )
   $registered.Run($null) | Out-Null
   $taskInstalled = $true
   Remove-Item -LiteralPath $shortcutPath -Force -ErrorAction SilentlyContinue

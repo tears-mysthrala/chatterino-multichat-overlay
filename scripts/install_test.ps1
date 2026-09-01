@@ -16,7 +16,15 @@ foreach ($setting in $expectedSettings) {
   }
 }
 
-if (-not $installSource.Contains('RegisterTaskDefinition($taskName, $definition, 6,')) {
+if (-not $installSource.Contains('$taskCreateOrUpdate = 6')) {
+  throw "Installer must declare the TASK_CREATE_OR_UPDATE registration flag"
+}
+
+if (-not $installSource.Contains('$taskLogonInteractiveToken = 3')) {
+  throw "Installer must declare the TASK_LOGON_INTERACTIVE_TOKEN logon type"
+}
+
+if (-not $installSource.Contains('$taskName, $definition, $taskCreateOrUpdate, $userId, $null, $taskLogonInteractiveToken,')) {
   throw "Installer must update the existing scheduled task in place"
 }
 
