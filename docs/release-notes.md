@@ -1,7 +1,10 @@
-# chatterino-multichat-overlay 0.6.2
+# chatterino-multichat-overlay 0.6.3
 
 This release makes Windows installation and updates a one-click, recoverable
 operation.
+
+This patch also updates the GitHub Actions runtime and disables an inapplicable
+Go module cache, so release validation completes without runner warnings.
 
 ## Install or update on Windows
 
