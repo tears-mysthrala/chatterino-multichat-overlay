@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -73,11 +74,11 @@ func TestUpdaterUsesFreshCache(t *testing.T) {
 	}
 }
 
-func TestUpdaterInvalidatesFreshCacheWhenInstalledVersionChanges(t *testing.T) {
+func TestUpdaterInvalidatesFreshCacheWhenInstalledPluginsChange(t *testing.T) {
 	root := t.TempDir()
 	data := filepath.Join(root, "overlay", "data")
-	pluginDir := filepath.Join(root, "kick")
-	if err := os.MkdirAll(pluginDir, 0o700); err != nil {
+	kickDir := filepath.Join(root, "kick")
+	if err := os.MkdirAll(kickDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.MkdirAll(data, 0o700); err != nil {
@@ -86,15 +87,19 @@ func TestUpdaterInvalidatesFreshCacheWhenInstalledVersionChanges(t *testing.T) {
 	writeManifest := func(version string) {
 		t.Helper()
 		raw := fmt.Sprintf(`{"name":"chatterino-kick-chat","version":%q,"homepage":"https://github.com/tears-mysthrala/chatterino-kick-chat"}`, version)
-		if err := os.WriteFile(filepath.Join(pluginDir, "info.json"), []byte(raw), 0o600); err != nil {
+		if err := os.WriteFile(filepath.Join(kickDir, "info.json"), []byte(raw), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
 	writeManifest("0.1.0")
 	requests := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requests++
-		fmt.Fprint(w, `{"tag_name":"v0.2.0","html_url":"https://github.com/tears-mysthrala/chatterino-kick-chat/releases/tag/v0.2.0"}`)
+		repo, latest := "chatterino-kick-chat", "0.2.0"
+		if strings.Contains(r.URL.Path, "chatterino-yt-chat") {
+			repo, latest = "chatterino-yt-chat", "1.1.0"
+		}
+		fmt.Fprintf(w, `{"tag_name":"v%s","html_url":"https://github.com/tears-mysthrala/%s/releases/tag/v%s"}`, latest, repo, latest)
 	}))
 	defer server.Close()
 	u := &updater{pluginsRoot: root, dataDir: data, apiBase: server.URL, client: server.Client()}
@@ -116,6 +121,39 @@ func TestUpdaterInvalidatesFreshCacheWhenInstalledVersionChanges(t *testing.T) {
 	}
 	if requests != 2 {
 		t.Fatalf("requests = %d, want 2 after installed version changed", requests)
+	}
+
+	youTubeDir := filepath.Join(root, "youtube")
+	if err := os.MkdirAll(youTubeDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	youTubeManifest := `{"name":"chatterino-yt-chat","version":"1.0.0","homepage":"https://github.com/tears-mysthrala/chatterino-yt-chat"}`
+	if err := os.WriteFile(filepath.Join(youTubeDir, "info.json"), []byte(youTubeManifest), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	third, err := u.check(context.Background(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(third.Updates) != 1 || third.Updates[0].Name != "chatterino-yt-chat" {
+		t.Fatalf("third updates = %#v, want only YouTube after plugin addition", third.Updates)
+	}
+	if requests != 4 {
+		t.Fatalf("requests = %d, want 4 after installed plugin was added", requests)
+	}
+
+	if err := os.RemoveAll(kickDir); err != nil {
+		t.Fatal(err)
+	}
+	fourth, err := u.check(context.Background(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(fourth.Updates) != 1 || fourth.Updates[0].Name != "chatterino-yt-chat" {
+		t.Fatalf("fourth updates = %#v, want only YouTube after plugin removal", fourth.Updates)
+	}
+	if requests != 5 {
+		t.Fatalf("requests = %d, want 5 after installed plugin was removed", requests)
 	}
 }
 
