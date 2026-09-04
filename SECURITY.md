@@ -111,7 +111,8 @@ not attach another user's tokens, private messages, cookies or full chat export.
 The Windows launcher invokes the operating system's bundled Windows PowerShell
 with `-ExecutionPolicy Bypass` for that installer process only. It does not
 change the user's or machine's execution policy and does not require
-administrator access. The installer closes Chatterino before changing its
+administrator access. The installer requests a normal Chatterino shutdown,
+then stops only background processes left without a window before changing its
 settings, stages the new files, moves the previous plugin and settings into a
 recoverable backup outside the active `Plugins` directory, verifies the hashes
 of preserved `data/` files, and restores the previous plugin and agent startup

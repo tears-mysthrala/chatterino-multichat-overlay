@@ -24,8 +24,9 @@ http://127.0.0.1:8765/overlay/gilraennr
    will print the local URL to use in OBS.
 
 The installer works with the Windows PowerShell already included in Windows.
-It closes Chatterino normally if needed, backs up the previous plugin and its
-settings under `%APPDATA%\Chatterino2\PluginBackups`, preserves `data/`, enables
+It requests a normal Chatterino shutdown if needed, waits 15 seconds, and stops
+only background processes left without a window. It backs up the previous
+plugin and its settings under `%APPDATA%\Chatterino2\PluginBackups`, preserves `data/`, enables
 plugin support, enables this plugin, and starts the local overlay agent. It
 does not request administrator access or change the system-wide PowerShell
 execution policy.
@@ -54,6 +55,8 @@ the ZIP. This check uses PowerShell but does not install or modify anything:
 3. Open PowerShell from the Start menu, type `Get-FileHash ` (including the
    final space), paste the copied path, type ` -Algorithm SHA256`, and press
    Enter.
+   If PowerShell says that `Get-FileHash` is unavailable, type
+   `certutil -hashfile `, paste the path, type ` SHA256`, and press Enter.
 4. Compare the displayed **Hash** with the long sequence in the `.sha256`
    file. They must match; uppercase and lowercase do not matter. If they do
    not match, delete both downloads and download them again.

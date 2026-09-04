@@ -8,6 +8,17 @@ function New-TestDirectory {
 
 $installPath = Join-Path $PSScriptRoot "install.ps1"
 $installSource = Get-Content -LiteralPath $installPath -Raw
+$tokens = $null
+$parseErrors = $null
+$installAst = [Management.Automation.Language.Parser]::ParseFile($installPath, [ref]$tokens, [ref]$parseErrors)
+if (@($parseErrors).Count -gt 0) { throw "Installer must parse as valid PowerShell" }
+$getFileHashCommands = @($installAst.FindAll({
+  param($node)
+  $node -is [Management.Automation.Language.CommandAst] -and $node.GetCommandName() -eq "Get-FileHash"
+}, $true))
+if ($getFileHashCommands.Count -gt 0) { throw "Installer data verification must not depend on Get-FileHash" }
+if ($installSource -notmatch '\$_\.MainWindowHandle\s*-eq\s*0') { throw "Installer must identify background-only Chatterino processes" }
+if ($installSource -notmatch 'Stop-Process\s+-Id\s+\$process\.Id\s+-Force') { throw "Installer must stop residual background Chatterino processes" }
 $expectedSettings = @(
   '$definition.Settings.ExecutionTimeLimit = "PT0S"'
   '$definition.Settings.DisallowStartIfOnBatteries = $false'
