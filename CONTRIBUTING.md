@@ -176,11 +176,12 @@ Add or update fixtures and regression tests whenever the contract, validation,
 deduplication, agent lifecycle or renderer changes. Keep commits scoped and do
 not include unrelated generated files.
 
-Release pull requests must also update the SemVer in
-`chatterino-plugin/info.json` and `docs/release-notes.md`. The packaged ZIP must
+Release pull requests must also update the bare SemVer in
+`chatterino-plugin/info.json` and `docs/release-notes.md`. Release tags add the
+leading `v` (for example, metadata `0.6.2` uses tag `v0.6.2`); CI validates
+that normalized match. The packaged ZIP must
 contain `install-or-update.cmd`, `scripts/install.ps1`, the plugin files, the
-agent executable, `README.md` and `LICENSE`. The tag must match the metadata
-version exactly.
+agent executable, `README.md` and `LICENSE`.
 
 ## Pull requests
 

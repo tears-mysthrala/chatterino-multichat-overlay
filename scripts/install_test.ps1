@@ -25,6 +25,7 @@ if (-not $installSource.Contains('Register-ScheduledTask -TaskName $taskName -Xm
 if (-not $installSource.Contains('Test-ManagedAgentPath -Path $_.ExecutablePath')) { throw "Installer must stop canonical and legacy-path overlay agents" }
 if (-not $installSource.Contains('if ($legacyRestoredDuringRollback) { $restoredPrevious = $true }')) { throw "Installer must restart restored legacy-agent persistence" }
 if (-not $installSource.Contains('$previousTaskWasRunning = $previousTask.State.ToString() -eq "Running"')) { throw "Installer must preserve the previous task running state" }
+if (-not $installSource.Contains('/grant:r "*${currentUserSid}:(R,W)"')) { throw "Installer must protect the control token with the current user SID" }
 if (-not $installSource.Contains('$taskName, $definition, $taskCreateOrUpdate, $userId, $null, $taskLogonInteractiveToken,')) {
   throw "Installer must update the existing scheduled task in place"
 }
@@ -41,12 +42,16 @@ try {
   Copy-Item -LiteralPath (Join-Path $PSScriptRoot "..\chatterino-plugin\init.lua"), (Join-Path $PSScriptRoot "..\chatterino-plugin\info.json") -Destination (Join-Path $packageRoot "chatterino-plugin")
   [IO.File]::WriteAllText((Join-Path $packageRoot "chatterino-plugin\bin\multichat-overlay.exe"), 'fake')
   [IO.File]::WriteAllText((Join-Path $pluginTarget "data\settings.json"), '{"saved":true}')
+  $hiddenCanonicalFile = Join-Path $pluginTarget "data\hidden-state.json"
+  [IO.File]::WriteAllText($hiddenCanonicalFile, '{"hidden":true}')
+  (Get-Item -LiteralPath $hiddenCanonicalFile -Force).Attributes = (Get-Item -LiteralPath $hiddenCanonicalFile -Force).Attributes -bor [IO.FileAttributes]::Hidden
   [IO.File]::WriteAllText((Join-Path $pluginTarget "obsolete.txt"), 'old')
   [IO.File]::WriteAllText($settingsPath, '{"plugins":{"supportEnabled":false,"enabledPlugins":["other-plugin","Chatterino-Multichat-Overlay"]},"unrelated":{"keep":42,"label":"Canal espa\u00f1ol \u65e5\u672c\u8a9e \ud83d\udd25"}}')
 
   & $fakeInstaller -ChatterinoRoot $chatterinoRoot -SkipProcessCheck -SkipAgentRegistration
   if (Test-Path -LiteralPath (Join-Path $pluginTarget "obsolete.txt")) { throw "obsolete payload was not removed" }
   if ((Get-Content -LiteralPath (Join-Path $pluginTarget "data\settings.json") -Raw) -ne '{"saved":true}') { throw "saved data changed" }
+  if ((Get-Content -LiteralPath (Join-Path $pluginTarget "data\hidden-state.json") -Raw) -ne '{"hidden":true}') { throw "hidden saved data changed" }
   $settings = [IO.File]::ReadAllText($settingsPath, [Text.Encoding]::UTF8) | ConvertFrom-Json
   $expectedLabel = '"Canal espa\u00f1ol \u65e5\u672c\u8a9e \ud83d\udd25"' | ConvertFrom-Json
   if (-not $settings.plugins.supportEnabled -or @($settings.plugins.enabledPlugins) -cnotcontains "chatterino-multichat-overlay") {
@@ -63,6 +68,16 @@ try {
   $nullPluginsSettings = [IO.File]::ReadAllText($nullPluginsSettingsPath, [Text.Encoding]::UTF8) | ConvertFrom-Json
   if (-not $nullPluginsSettings.plugins.supportEnabled -or @($nullPluginsSettings.plugins.enabledPlugins) -cnotcontains "chatterino-multichat-overlay" -or $nullPluginsSettings.unrelated.keep -ne 7) {
     throw "null plugins settings were not initialized safely"
+  }
+
+  $scalarPluginsRoot = Join-Path $sandbox "ScalarPluginsCase"
+  $scalarPluginsSettingsPath = Join-Path $scalarPluginsRoot "Settings\settings.json"
+  New-TestDirectory -Path (Split-Path -Parent $scalarPluginsSettingsPath)
+  [IO.File]::WriteAllText($scalarPluginsSettingsPath, '{"plugins":"invalid","unrelated":{"keep":8}}')
+  & $fakeInstaller -ChatterinoRoot $scalarPluginsRoot -SkipProcessCheck -SkipAgentRegistration
+  $scalarPluginsSettings = [IO.File]::ReadAllText($scalarPluginsSettingsPath, [Text.Encoding]::UTF8) | ConvertFrom-Json
+  if (-not $scalarPluginsSettings.plugins.supportEnabled -or @($scalarPluginsSettings.plugins.enabledPlugins) -cnotcontains "chatterino-multichat-overlay" -or $scalarPluginsSettings.unrelated.keep -ne 8) {
+    throw "non-object plugins settings were not initialized safely"
   }
 
   $migrationRoot = Join-Path $sandbox "MigrationCase"
@@ -97,9 +112,15 @@ try {
   [IO.File]::WriteAllText((Join-Path $conflictLegacyData "settings.json"), '{"legacy":true}')
   [IO.File]::WriteAllText($conflictSettingsPath, '{"plugins":{"supportEnabled":true,"enabledPlugins":["chatterino-multichat-overlay-0.1.0"]}}')
   $conflictRejected = $false
-  try { & $fakeInstaller -ChatterinoRoot $conflictRoot -SkipProcessCheck -SkipAgentRegistration } catch { $conflictRejected = $true }
+  try { & $fakeInstaller -ChatterinoRoot $conflictRoot -SkipProcessCheck -SkipAgentRegistration } catch {
+    if ($_.Exception.Message -notmatch "contain different saved data") {
+      throw "the conflict case failed for an unrelated reason: $($_.Exception.Message)"
+    }
+    $conflictRejected = $true
+  }
   if (-not $conflictRejected) { throw "conflicting saved data was not rejected" }
   if ((Get-Content -LiteralPath (Join-Path $conflictCanonicalData "settings.json") -Raw) -ne '{"canonical":true}') { throw "conflict rollback did not restore canonical data" }
+  if ((Get-Content -LiteralPath (Join-Path $conflictLegacyData "settings.json") -Raw) -ne '{"legacy":true}') { throw "conflict rollback did not preserve legacy data" }
   $conflictSettings = Get-Content -LiteralPath $conflictSettingsPath -Raw | ConvertFrom-Json
   if (@($conflictSettings.plugins.enabledPlugins) -notcontains "chatterino-multichat-overlay-0.1.0" -or @($conflictSettings.plugins.enabledPlugins) -contains "chatterino-multichat-overlay") {
     throw "conflict rollback changed plugin activation"

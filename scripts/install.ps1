@@ -99,13 +99,20 @@ function Move-LegacyPluginToBackup {
 }
 
 function Restore-QuarantinedLegacyPlugins {
+  $failures = @()
   for ($index = $script:quarantinedLegacy.Count - 1; $index -ge 0; $index--) {
     $move = $script:quarantinedLegacy[$index]
     if (-not (Test-Path -LiteralPath $move.Backup -PathType Container)) { continue }
-    if (Test-Path -LiteralPath $move.Source) { throw "Could not restore legacy plugin folder $($move.Source): the path already exists." }
-    Move-Item -LiteralPath $move.Backup -Destination $move.Source
-    $script:legacyRestoredDuringRollback = $true
+    if (Test-Path -LiteralPath $move.Source) {
+      $failures += "Could not restore legacy plugin folder $($move.Source): the path already exists."
+      continue
+    }
+    try {
+      Move-Item -LiteralPath $move.Backup -Destination $move.Source -ErrorAction Stop
+      $script:legacyRestoredDuringRollback = $true
+    } catch { $failures += $_.Exception.Message }
   }
+  if ($failures.Count -gt 0) { throw ($failures -join " ") }
 }
 
 function Enable-ChatterinoPlugin {
@@ -120,7 +127,7 @@ function Enable-ChatterinoPlugin {
   } else { $settings = [pscustomobject]@{} }
 
   try {
-    if ($null -eq $settings.PSObject.Properties["plugins"] -or $null -eq $settings.plugins) {
+    if ($null -eq $settings.PSObject.Properties["plugins"] -or $settings.plugins -isnot [pscustomobject]) {
       Set-JsonProperty -Object $settings -Name "plugins" -Value ([pscustomobject]@{})
     }
     $plugins = $settings.plugins
@@ -255,7 +262,8 @@ try {
   }
 
   if (-not $SkipAgentRegistration) {
-    & icacls.exe $tokenTarget /inheritance:r /grant:r "${env:USERNAME}:(R,W)" | Out-Null
+    $currentUserSid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+    & icacls.exe $tokenTarget /inheritance:r /grant:r "*${currentUserSid}:(R,W)" | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "Could not protect the local control token." }
     $token = [IO.File]::ReadAllText($tokenTarget).Trim()
     try {
