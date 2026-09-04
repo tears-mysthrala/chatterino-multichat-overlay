@@ -9,23 +9,6 @@ http://127.0.0.1:8765/overlay/gilraennr
 
 ## Install on Windows
 
-The installer requires **PowerShell 7**. Windows PowerShell 5.1, the older app
-included with Windows, is not sufficient. PowerShell 7 is Microsoft's current,
-side-by-side version and receives its own updates.
-
-### Install PowerShell 7 first
-
-1. Open **Microsoft Store** from the Start menu.
-2. Search for `PowerShell`.
-3. Select **PowerShell**, published by **Microsoft Corporation**, and select
-   **Install**. Do not choose **PowerShell Preview**.
-4. When the installation finishes, close Microsoft Store.
-
-Microsoft also documents alternative installation methods in
-[Install PowerShell 7 on Windows](https://learn.microsoft.com/powershell/scripting/install/install-powershell-on-windows).
-
-### Install the overlay
-
 1. Open the [Releases page](https://github.com/tears-mysthrala/chatterino-multichat-overlay/releases)
    and select the latest release that is not marked **Pre-release**.
 2. Under **Assets**, download the Windows x64 ZIP. Do not download the files
@@ -33,39 +16,31 @@ Microsoft also documents alternative installation methods in
 3. In File Explorer, right-click the downloaded ZIP, select **Extract all**,
    and then select **Extract**.
 4. Open the extracted `chatterino-multichat-overlay-windows-x64` folder.
-5. Right-click an empty area inside that folder and select **Open in Terminal**.
-6. Copy the following line, paste it into the terminal, and press Enter. Do not
-   open the terminal as administrator.
+5. Double-click `install-or-update.cmd`. Do not run it as administrator.
+6. Wait for `Done`, press any key to close the installer, and open Chatterino.
+7. In the input box of a normal channel panel, enter `/overlay`. Chatterino
+   will print the local URL to use in OBS.
 
-   ```powershell
-   pwsh.exe -NoProfile -File .\scripts\install.ps1
-   ```
+The installer works with the Windows PowerShell already included in Windows.
+It closes Chatterino normally if needed, backs up the previous plugin and its
+settings under `%APPDATA%\Chatterino2\PluginBackups`, preserves `data/`, enables
+plugin support, enables this plugin, and starts the local overlay agent. It
+does not request administrator access or change the system-wide PowerShell
+execution policy.
 
-7. Wait for the message `Instalado y agente activo`, and then close the
-   terminal.
-8. Restart Chatterino.
-9. In Chatterino, open **Settings → Plugins**, turn on **Enable plugins**, and
-   enable `chatterino-multichat-overlay` if it is not already enabled.
-10. In the input box of a normal channel panel, enter `/overlay`. Chatterino
-    will print the local URL to use in OBS.
+If the launcher does not open, right-click an empty area in the extracted
+folder, select **Open in Terminal**, and run:
 
-The installer copies the plugin to Chatterino's plugin folder and starts its
-local helper automatically. You can delete the downloaded ZIP and extracted
-folder after installation.
-
-### If the terminal says that `pwsh.exe` does not exist
-
-Close the terminal, confirm that **PowerShell** appears in the Start menu, and
-open the terminal from the extracted folder again. If it still fails, restart
-Windows once so the new application path is available, then repeat the command.
-Do not replace `pwsh.exe` with `powershell.exe`: they are different versions.
+```powershell
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\scripts\install.ps1 -CloseChatterino
+```
 
 ### Updating without losing settings
 
-Close Chatterino, download and extract the new release, and run its
-`scripts\install.ps1` in the same way. The installer replaces the program files
-but keeps the existing `data` folder, which contains the overlay settings and
-viewing streaks. Restart Chatterino and run `/overlay` again.
+Download and extract the new release, then double-click
+`install-or-update.cmd` again. The same installer handles both a clean install
+and an update. It verifies that saved `data/` files are unchanged before it
+reports success. Open Chatterino and run `/overlay` again.
 
 ## Optional download verification
 

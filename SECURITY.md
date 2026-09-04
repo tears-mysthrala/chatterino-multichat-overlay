@@ -108,6 +108,15 @@ not attach another user's tokens, private messages, cookies or full chat export.
 - Changes to control endpoints, authentication, process creation, network
   allowlists or credential storage require focused regression tests.
 
+The Windows launcher invokes the operating system's bundled Windows PowerShell
+with `-ExecutionPolicy Bypass` for that installer process only. It does not
+change the user's or machine's execution policy and does not require
+administrator access. The installer closes Chatterino before changing its
+settings, stages the new files, moves the previous plugin and settings into a
+recoverable backup outside the active `Plugins` directory, verifies the hashes
+of preserved `data/` files, and restores the previous plugin and agent startup
+configuration if installation fails.
+
 ## Reporting a vulnerability
 
 Report vulnerabilities privately through GitHub Security Advisories for the

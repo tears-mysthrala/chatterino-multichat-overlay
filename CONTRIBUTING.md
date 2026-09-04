@@ -165,16 +165,22 @@ For changes in this repository, run:
 ```powershell
 go test ./...
 go vet ./...
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install_test.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/install_test.ps1
 lua5.4 tests/bridge_test.lua
 node --check internal/overlay/web/overlay.js
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/package.ps1
 git diff --check
 ```
 
 Add or update fixtures and regression tests whenever the contract, validation,
 deduplication, agent lifecycle or renderer changes. Keep commits scoped and do
 not include unrelated generated files.
+
+Release pull requests must also update the SemVer in
+`chatterino-plugin/info.json` and `docs/release-notes.md`. The packaged ZIP must
+contain `install-or-update.cmd`, `scripts/install.ps1`, the plugin files, the
+agent executable, `README.md` and `LICENSE`. The tag must match the metadata
+version exactly.
 
 ## Pull requests
 
@@ -184,4 +190,5 @@ Describe:
 - the upstream payload or fixture that justifies it;
 - security and privacy impact;
 - compatibility with installations missing that platform plugin;
-- exact local checks performed.
+- exact local checks performed;
+- how installation and later updates work after merge.

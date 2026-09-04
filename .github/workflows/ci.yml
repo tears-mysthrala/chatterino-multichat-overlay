@@ -23,7 +23,7 @@ jobs:
           go-version-file: go.mod
       - run: go test ./...
       - run: go vet ./...
-      - shell: pwsh
+      - shell: powershell
         run: .\scripts\install_test.ps1
       - run: .\scripts\package.ps1
       - uses: actions/upload-artifact@v4
