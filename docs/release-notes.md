@@ -13,6 +13,8 @@ background-only Chatterino processes after waiting for normal window shutdown.
    `.sha256` file from this release.
 2. Before extraction, open PowerShell in the download folder and run
    `(Get-FileHash .\chatterino-multichat-overlay-windows-x64.zip -Algorithm SHA256).Hash`.
+   If that command is unavailable, run
+   `certutil -hashfile .\chatterino-multichat-overlay-windows-x64.zip SHA256`.
 3. Compare the result with the hash in the `.sha256` file. Continue only when
    they match.
 4. Select **Extract all** in File Explorer.

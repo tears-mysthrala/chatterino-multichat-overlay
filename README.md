@@ -55,6 +55,8 @@ the ZIP. This check uses PowerShell but does not install or modify anything:
 3. Open PowerShell from the Start menu, type `Get-FileHash ` (including the
    final space), paste the copied path, type ` -Algorithm SHA256`, and press
    Enter.
+   If PowerShell says that `Get-FileHash` is unavailable, type
+   `certutil -hashfile `, paste the path, type ` SHA256`, and press Enter.
 4. Compare the displayed **Hash** with the long sequence in the `.sha256`
    file. They must match; uppercase and lowercase do not matter. If they do
    not match, delete both downloads and download them again.
