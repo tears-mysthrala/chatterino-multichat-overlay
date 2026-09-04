@@ -24,8 +24,9 @@ http://127.0.0.1:8765/overlay/gilraennr
    will print the local URL to use in OBS.
 
 The installer works with the Windows PowerShell already included in Windows.
-It closes Chatterino normally if needed, backs up the previous plugin and its
-settings under `%APPDATA%\Chatterino2\PluginBackups`, preserves `data/`, enables
+It requests a normal Chatterino shutdown if needed, waits 15 seconds, and stops
+only background processes left without a window. It backs up the previous
+plugin and its settings under `%APPDATA%\Chatterino2\PluginBackups`, preserves `data/`, enables
 plugin support, enables this plugin, and starts the local overlay agent. It
 does not request administrator access or change the system-wide PowerShell
 execution policy.

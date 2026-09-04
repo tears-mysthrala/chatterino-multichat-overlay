@@ -1,10 +1,11 @@
-# chatterino-multichat-overlay 0.6.3
+# chatterino-multichat-overlay 0.6.4
 
 This release makes Windows installation and updates a one-click, recoverable
 operation.
 
-This patch also updates the GitHub Actions runtime and disables an inapplicable
-Go module cache, so release validation completes without runner warnings.
+This patch makes the launcher reliable on Windows PowerShell installations
+where `Get-FileHash` is unavailable during script execution. It also cleans up
+background-only Chatterino processes after waiting for normal window shutdown.
 
 ## Install or update on Windows
 
@@ -21,8 +22,9 @@ Go module cache, so release validation completes without runner warnings.
 
 The launcher uses the Windows PowerShell already included with Windows. Its
 execution-policy bypass applies only to the installer process. The installer
-closes Chatterino normally, creates a recoverable backup under
-`%APPDATA%\Chatterino2\PluginBackups`, preserves and hashes the plugin's `data/`
+requests a normal Chatterino shutdown and, after a 15-second grace period,
+stops only remaining processes without a window. It creates a recoverable
+backup under `%APPDATA%\Chatterino2\PluginBackups`, preserves and hashes the plugin's `data/`
 directory, enables plugin support and this plugin, updates the existing agent
 startup entry without creating duplicates, and confirms local agent health.
 If an installation step fails, it restores the previous plugin and startup
