@@ -15,6 +15,13 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+      - name: Validate tag and metadata version
+        shell: powershell
+        run: |
+          $version = (Get-Content chatterino-plugin/info.json -Raw | ConvertFrom-Json).version
+          if ($env:GITHUB_REF_NAME -ne "v$version") {
+            throw "Tag $env:GITHUB_REF_NAME does not match plugin version $version."
+          }
       - run: go test ./...
       - run: go vet ./...
       - run: .\scripts\package.ps1
@@ -31,6 +38,6 @@ jobs:
         run: |
           gh release create $env:GITHUB_REF_NAME `
             --title "chatterino-multichat-overlay $($env:GITHUB_REF_NAME.TrimStart('v'))" `
-            --generate-notes `
+            --notes-file docs/release-notes.md `
             "dist/chatterino-multichat-overlay-windows-x64.zip" `
             "dist/chatterino-multichat-overlay-windows-x64.zip.sha256"
