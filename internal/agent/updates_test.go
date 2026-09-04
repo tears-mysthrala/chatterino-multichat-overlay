@@ -73,6 +73,52 @@ func TestUpdaterUsesFreshCache(t *testing.T) {
 	}
 }
 
+func TestUpdaterInvalidatesFreshCacheWhenInstalledVersionChanges(t *testing.T) {
+	root := t.TempDir()
+	data := filepath.Join(root, "overlay", "data")
+	pluginDir := filepath.Join(root, "kick")
+	if err := os.MkdirAll(pluginDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(data, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	writeManifest := func(version string) {
+		t.Helper()
+		raw := fmt.Sprintf(`{"name":"chatterino-kick-chat","version":%q,"homepage":"https://github.com/tears-mysthrala/chatterino-kick-chat"}`, version)
+		if err := os.WriteFile(filepath.Join(pluginDir, "info.json"), []byte(raw), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeManifest("0.1.0")
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests++
+		fmt.Fprint(w, `{"tag_name":"v0.2.0","html_url":"https://github.com/tears-mysthrala/chatterino-kick-chat/releases/tag/v0.2.0"}`)
+	}))
+	defer server.Close()
+	u := &updater{pluginsRoot: root, dataDir: data, apiBase: server.URL, client: server.Client()}
+	first, err := u.check(context.Background(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(first.Updates) != 1 {
+		t.Fatalf("first updates = %#v, want one update", first.Updates)
+	}
+
+	writeManifest("0.2.0")
+	second, err := u.check(context.Background(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(second.Updates) != 0 {
+		t.Fatalf("second updates = %#v, want none", second.Updates)
+	}
+	if requests != 2 {
+		t.Fatalf("requests = %d, want 2 after installed version changed", requests)
+	}
+}
+
 func TestSemverComparisonRejectsPrereleases(t *testing.T) {
 	if compareSemver("1.4.0", "1.3.9") <= 0 {
 		t.Fatal("stable version was not newer")

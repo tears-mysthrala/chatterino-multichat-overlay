@@ -1,11 +1,8 @@
-# chatterino-multichat-overlay 0.6.4
+# chatterino-multichat-overlay 0.6.5
 
-This release makes Windows installation and updates a one-click, recoverable
-operation.
-
-This patch makes the launcher reliable on Windows PowerShell installations
-where `Get-FileHash` is unavailable during script execution. It also cleans up
-background-only Chatterino processes after waiting for normal window shutdown.
+This patch prevents stale update alerts after installing a new plugin version.
+The agent now invalidates its 24-hour GitHub response cache whenever the set of
+installed multichat plugins or any installed version changes.
 
 ## Install or update on Windows
 
