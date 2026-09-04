@@ -11,14 +11,16 @@ http://127.0.0.1:8765/overlay/gilraennr
 
 1. Open the [Releases page](https://github.com/tears-mysthrala/chatterino-multichat-overlay/releases)
    and select the latest release that is not marked **Pre-release**.
-2. Under **Assets**, download the Windows x64 ZIP. Do not download the files
-   named **Source code**.
-3. In File Explorer, right-click the downloaded ZIP, select **Extract all**,
+2. Under **Assets**, download the Windows x64 ZIP and its matching `.sha256`
+   file. Do not download the files named **Source code**.
+3. Before extracting anything, complete the **Required download verification**
+   below. Stop if the hashes do not match.
+4. In File Explorer, right-click the verified ZIP, select **Extract all**,
    and then select **Extract**.
-4. Open the extracted `chatterino-multichat-overlay-windows-x64` folder.
-5. Double-click `install-or-update.cmd`. Do not run it as administrator.
-6. Wait for `Done`, press any key to close the installer, and open Chatterino.
-7. In the input box of a normal channel panel, enter `/overlay`. Chatterino
+5. Open the extracted `chatterino-multichat-overlay-windows-x64` folder.
+6. Double-click `install-or-update.cmd`. Do not run it as administrator.
+7. Wait for `Done`, press any key to close the installer, and open Chatterino.
+8. In the input box of a normal channel panel, enter `/overlay`. Chatterino
    will print the local URL to use in OBS.
 
 The installer works with the Windows PowerShell already included in Windows.
@@ -42,11 +44,10 @@ Download and extract the new release, then double-click
 and an update. It verifies that saved `data/` files are unchanged before it
 reports success. Open Chatterino and run `/overlay` again.
 
-## Optional download verification
+## Required download verification
 
-Each release includes a `.sha256` file. It lets you check that the ZIP was not
-damaged or changed during download. This check uses PowerShell but does not
-install or modify anything:
+Each release includes a `.sha256` file. Verify it before extracting or running
+the ZIP. This check uses PowerShell but does not install or modify anything:
 
 1. Download both the Windows ZIP and its `.sha256` file into the same folder.
 2. In File Explorer, right-click the ZIP and select **Copy as path**.
