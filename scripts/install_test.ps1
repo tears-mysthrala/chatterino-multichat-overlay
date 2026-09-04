@@ -1,6 +1,11 @@
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version 2.0
 
+function New-TestDirectory {
+  param([string[]]$Path)
+  foreach ($entry in $Path) { [IO.Directory]::CreateDirectory($entry) | Out-Null }
+}
+
 $installPath = Join-Path $PSScriptRoot "install.ps1"
 $installSource = Get-Content -LiteralPath $installPath -Raw
 $expectedSettings = @(
@@ -31,7 +36,7 @@ $chatterinoRoot = Join-Path $sandbox "Chatterino2"
 $pluginTarget = Join-Path $chatterinoRoot "Plugins\chatterino-multichat-overlay"
 $settingsPath = Join-Path $chatterinoRoot "Settings\settings.json"
 try {
-  New-Item -ItemType Directory -Force -Path (Split-Path -Parent $fakeInstaller), (Join-Path $packageRoot "chatterino-plugin\bin"), (Join-Path $pluginTarget "data"), (Split-Path -Parent $settingsPath) | Out-Null
+  New-TestDirectory -Path @((Split-Path -Parent $fakeInstaller), (Join-Path $packageRoot "chatterino-plugin\bin"), (Join-Path $pluginTarget "data"), (Split-Path -Parent $settingsPath))
   Copy-Item -LiteralPath $installPath -Destination $fakeInstaller
   Copy-Item -LiteralPath (Join-Path $PSScriptRoot "..\chatterino-plugin\init.lua"), (Join-Path $PSScriptRoot "..\chatterino-plugin\info.json") -Destination (Join-Path $packageRoot "chatterino-plugin")
   [IO.File]::WriteAllText((Join-Path $packageRoot "chatterino-plugin\bin\multichat-overlay.exe"), 'fake')
@@ -50,10 +55,20 @@ try {
   if (@($settings.plugins.enabledPlugins) -ccontains "Chatterino-Multichat-Overlay") { throw "plugin id casing variant remains enabled" }
   if (@($settings.plugins.enabledPlugins) -notcontains "other-plugin" -or $settings.unrelated.keep -ne 42 -or $settings.unrelated.label -ne $expectedLabel) { throw "unrelated settings changed" }
 
+  $nullPluginsRoot = Join-Path $sandbox "NullPluginsCase"
+  $nullPluginsSettingsPath = Join-Path $nullPluginsRoot "Settings\settings.json"
+  New-TestDirectory -Path (Split-Path -Parent $nullPluginsSettingsPath)
+  [IO.File]::WriteAllText($nullPluginsSettingsPath, '{"plugins":null,"unrelated":{"keep":7}}')
+  & $fakeInstaller -ChatterinoRoot $nullPluginsRoot -SkipProcessCheck -SkipAgentRegistration
+  $nullPluginsSettings = [IO.File]::ReadAllText($nullPluginsSettingsPath, [Text.Encoding]::UTF8) | ConvertFrom-Json
+  if (-not $nullPluginsSettings.plugins.supportEnabled -or @($nullPluginsSettings.plugins.enabledPlugins) -cnotcontains "chatterino-multichat-overlay" -or $nullPluginsSettings.unrelated.keep -ne 7) {
+    throw "null plugins settings were not initialized safely"
+  }
+
   $migrationRoot = Join-Path $sandbox "MigrationCase"
   $legacyData = Join-Path $migrationRoot "Plugins\chatterino-multichat-overlay-0.1.0\data"
   $migrationSettingsPath = Join-Path $migrationRoot "Settings\settings.json"
-  New-Item -ItemType Directory -Force -Path $legacyData, (Split-Path -Parent $migrationSettingsPath) | Out-Null
+  New-TestDirectory -Path @($legacyData, (Split-Path -Parent $migrationSettingsPath))
   $hiddenLegacyFile = Join-Path $legacyData "settings.json"
   [IO.File]::WriteAllText($hiddenLegacyFile, '{"legacy":true}')
   (Get-Item -LiteralPath $hiddenLegacyFile -Force).Attributes = (Get-Item -LiteralPath $hiddenLegacyFile -Force).Attributes -bor [IO.FileAttributes]::Hidden
@@ -77,7 +92,7 @@ try {
   $conflictCanonicalData = Join-Path $conflictRoot "Plugins\chatterino-multichat-overlay\data"
   $conflictLegacyData = Join-Path $conflictRoot "Plugins\chatterino-multichat-overlay-0.1.0\data"
   $conflictSettingsPath = Join-Path $conflictRoot "Settings\settings.json"
-  New-Item -ItemType Directory -Force -Path $conflictCanonicalData, $conflictLegacyData, (Split-Path -Parent $conflictSettingsPath) | Out-Null
+  New-TestDirectory -Path @($conflictCanonicalData, $conflictLegacyData, (Split-Path -Parent $conflictSettingsPath))
   [IO.File]::WriteAllText((Join-Path $conflictCanonicalData "settings.json"), '{"canonical":true}')
   [IO.File]::WriteAllText((Join-Path $conflictLegacyData "settings.json"), '{"legacy":true}')
   [IO.File]::WriteAllText($conflictSettingsPath, '{"plugins":{"supportEnabled":true,"enabledPlugins":["chatterino-multichat-overlay-0.1.0"]}}')

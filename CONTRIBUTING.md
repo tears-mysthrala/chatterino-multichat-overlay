@@ -165,10 +165,10 @@ For changes in this repository, run:
 ```powershell
 go test ./...
 go vet ./...
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/install_test.ps1
+& "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File scripts/install_test.ps1
 lua5.4 tests/bridge_test.lua
 node --check internal/overlay/web/overlay.js
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/package.ps1
+& "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File scripts/package.ps1
 git diff --check
 ```
 

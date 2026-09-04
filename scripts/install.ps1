@@ -43,6 +43,11 @@ function Set-JsonProperty {
   else { $Object | Add-Member -MemberType NoteProperty -Name $Name -Value $Value }
 }
 
+function Ensure-Directory {
+  param([string[]]$Path)
+  foreach ($entry in $Path) { [IO.Directory]::CreateDirectory($entry) | Out-Null }
+}
+
 function Assert-ChatterinoClosed {
   if ($SkipProcessCheck) { return }
   $running = @(Get-Process -Name "chatterino" -ErrorAction SilentlyContinue)
@@ -87,7 +92,7 @@ function Move-LegacyPluginToBackup {
   $legacyBackupRoot = Join-Path $backupPath "legacy"
   $destination = Join-Path $legacyBackupRoot $Id
   if (Test-Path -LiteralPath $destination) { throw "Legacy backup already exists for $Id." }
-  New-Item -ItemType Directory -Force -Path $legacyBackupRoot | Out-Null
+  Ensure-Directory -Path $legacyBackupRoot
   Move-Item -LiteralPath $source -Destination $destination
   $script:quarantinedLegacy += [pscustomobject]@{ Source = $source; Backup = $destination }
   Write-Host "Moved legacy plugin folder $Id into the recoverable backup."
@@ -105,7 +110,7 @@ function Restore-QuarantinedLegacyPlugins {
 
 function Enable-ChatterinoPlugin {
   $settingsDirectory = Split-Path -Parent $settingsPath
-  New-Item -ItemType Directory -Force -Path $settingsDirectory | Out-Null
+  Ensure-Directory -Path $settingsDirectory
   $settingsBackup = Join-Path $backupPath "settings.json"
   $tempSettings = Join-Path $settingsDirectory ".settings-$installId.tmp"
   if ($settingsExisted) {
@@ -115,8 +120,8 @@ function Enable-ChatterinoPlugin {
   } else { $settings = [pscustomobject]@{} }
 
   try {
-    if ($null -eq $settings.PSObject.Properties["plugins"]) {
-      $settings | Add-Member -MemberType NoteProperty -Name "plugins" -Value ([pscustomobject]@{})
+    if ($null -eq $settings.PSObject.Properties["plugins"] -or $null -eq $settings.plugins) {
+      Set-JsonProperty -Object $settings -Name "plugins" -Value ([pscustomobject]@{})
     }
     $plugins = $settings.plugins
     Set-JsonProperty -Object $plugins -Name "supportEnabled" -Value $true
@@ -138,7 +143,7 @@ function Enable-ChatterinoPlugin {
             $canonicalData = Join-Path $pluginTarget "data"
             $canonicalFiles = @(Get-DataFingerprint -DataPath $canonicalData)
             if ($canonicalFiles.Count -eq 0) {
-              New-Item -ItemType Directory -Force -Path $canonicalData | Out-Null
+              Ensure-Directory -Path $canonicalData
               Get-ChildItem -LiteralPath $legacyData -Force | ForEach-Object {
                 Copy-Item -LiteralPath $_.FullName -Destination $canonicalData -Recurse -Force
               }
@@ -206,7 +211,7 @@ foreach ($required in @("init.lua", "info.json", "bin\multichat-overlay.exe")) {
 Assert-ChatterinoClosed
 $settingsExisted = Test-Path -LiteralPath $settingsPath -PathType Leaf
 $pluginExisted = Test-Path -LiteralPath $pluginTarget
-New-Item -ItemType Directory -Force -Path $pluginsRoot, $backupPath, $stageTarget, (Join-Path $stageTarget "bin") | Out-Null
+Ensure-Directory -Path @($pluginsRoot, $backupPath, $stageTarget, (Join-Path $stageTarget "bin"))
 $previousShortcutExisted = Test-Path -LiteralPath $shortcutPath -PathType Leaf
 if (-not $SkipAgentRegistration) {
   $previousTask = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
@@ -240,7 +245,7 @@ try {
   if (Test-Path -LiteralPath $pluginTarget) { Move-Item -LiteralPath $pluginTarget -Destination $previousTarget }
   Move-Item -LiteralPath $stageTarget -Destination $pluginTarget
   $swapped = $true
-  New-Item -ItemType Directory -Force -Path (Join-Path $pluginTarget "data") | Out-Null
+  Ensure-Directory -Path (Join-Path $pluginTarget "data")
   Enable-ChatterinoPlugin
   if (-not (Test-Path -LiteralPath $tokenTarget)) {
     $bytes = New-Object byte[] 32
