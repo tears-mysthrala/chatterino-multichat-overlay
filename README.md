@@ -97,6 +97,8 @@ once every 24 hours and shows available updates as Chatterino system messages.
 It never downloads or installs them. Use `/overlay updates` for the cached
 status, `/overlay updates check` to refresh now, and `/overlay updates on|off`
 to enable or disable automatic checks.
+The cache is invalidated automatically when an installed plugin version changes,
+so an update completed during the 24-hour window is not reported again.
 
 For live events, install version `0.2.0` or newer of
 [chatterino-kick-chat](https://github.com/tears-mysthrala/chatterino-kick-chat/releases)

@@ -31,8 +31,9 @@ type updateInfo struct {
 }
 
 type updateCache struct {
-	CheckedAt time.Time    `json:"checked_at"`
-	Updates   []updateInfo `json:"updates"`
+	CheckedAt         time.Time         `json:"checked_at"`
+	InstalledVersions map[string]string `json:"installed_versions"`
+	Updates           []updateInfo      `json:"updates"`
 }
 
 type updater struct {
@@ -67,16 +68,16 @@ func (u *updater) check(ctx context.Context, force bool) (updateCache, error) {
 	if !u.enabled() {
 		return updateCache{}, errors.New("disabled")
 	}
-	if !force {
-		if cached, ok := u.readCache(); ok && time.Since(cached.CheckedAt) < updateCacheTTL {
-			return cached, nil
-		}
-	}
 	installed, err := u.installedPlugins()
 	if err != nil {
 		return updateCache{}, err
 	}
-	result := updateCache{CheckedAt: time.Now().UTC()}
+	if !force {
+		if cached, ok := u.readCache(); ok && time.Since(cached.CheckedAt) < updateCacheTTL && sameVersions(cached.InstalledVersions, installed) {
+			return cached, nil
+		}
+	}
+	result := updateCache{CheckedAt: time.Now().UTC(), InstalledVersions: installed}
 	names := make([]string, 0, len(installed))
 	for name := range installed {
 		names = append(names, name)
@@ -101,6 +102,18 @@ func (u *updater) check(ctx context.Context, force bool) (updateCache, error) {
 		return updateCache{}, err
 	}
 	return result, nil
+}
+
+func sameVersions(left, right map[string]string) bool {
+	if left == nil || len(left) != len(right) {
+		return false
+	}
+	for name, version := range right {
+		if left[name] != version {
+			return false
+		}
+	}
+	return true
 }
 
 func (u *updater) installedPlugins() (map[string]string, error) {
